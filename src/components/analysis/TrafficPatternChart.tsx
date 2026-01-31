@@ -28,40 +28,57 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
 
   // Generate simulated packet loss data based on root cause attribution
   const chartData = useMemo(() => {
-    const timePoints: Record<string, Record<string, number>> = {};
+    const timePoints: Record<number, Record<string, number>> = {};
     
-    // Create time series from 0 to 60 seconds
-    for (let t = 0; t <= 60; t += 1) {
-      timePoints[t] = { time: t };
+    // Use a time range from 0 to 5 seconds with 0.1s intervals for more granular data
+    for (let t = 0; t <= 5; t += 0.1) {
+      const roundedT = Math.round(t * 10) / 10;
+      timePoints[roundedT] = { time: roundedT };
     }
 
-    // Add loss events based on root cause attribution
-    Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
-      events.forEach((event) => {
-        const timeKey = Math.round(event.time_sec);
-        event.contributors.forEach((contrib) => {
-          const cellKey = `cell_${contrib.cell_id}`;
-          // Scale contribution to loss fraction (0-1)
-          const loss = (contrib.pct / 100) * (0.5 + Math.random() * 0.3);
-          if (!timePoints[timeKey]) timePoints[timeKey] = { time: timeKey };
-          timePoints[timeKey][cellKey] = Math.min(1, (timePoints[timeKey][cellKey] || 0) + loss);
-        });
+    // Get all unique cell IDs
+    const allCells = new Set<number>();
+    Object.values(data.topology).forEach((cells) => {
+      cells.forEach((cellId) => allCells.add(cellId));
+    });
+
+    // Initialize all cells with baseline values
+    Object.keys(timePoints).forEach((tKey) => {
+      const t = parseFloat(tKey);
+      allCells.forEach((cellId) => {
+        const cellKey = `cell_${cellId}`;
+        // Create varied baseline noise with different patterns per cell
+        const baseNoise = Math.sin(t * 2 + cellId) * 0.02 + 0.03;
+        timePoints[t][cellKey] = Math.max(0, baseNoise + Math.random() * 0.02);
       });
     });
 
-    // Add some baseline noise
-    Object.keys(timePoints).forEach((t) => {
-      Object.entries(data.topology).forEach(([, cells]) => {
-        cells.forEach((cellId) => {
-          const cellKey = `cell_${cellId}`;
-          if (!timePoints[t][cellKey]) {
-            timePoints[t][cellKey] = Math.random() * 0.05;
+    // Add loss spikes based on root cause attribution
+    Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
+      events.forEach((event) => {
+        // Map event time to our 0-5s range
+        const normalizedTime = ((event.time_sec - 1) / 3) * 5; // Map 1-4s to 0-5s range
+        const baseTime = Math.round(normalizedTime * 10) / 10;
+        
+        event.contributors.forEach((contrib, contribIdx) => {
+          const cellKey = `cell_${contrib.cell_id}`;
+          
+          // Create a spike around the event time with some spread
+          for (let offset = -0.3; offset <= 0.3; offset += 0.1) {
+            const t = Math.round((baseTime + offset + contribIdx * 0.1) * 10) / 10;
+            if (t >= 0 && t <= 5 && timePoints[t]) {
+              // Calculate spike height based on contribution percentage
+              const spikeHeight = (contrib.pct / 100) * (0.4 + Math.random() * 0.3);
+              const decay = 1 - Math.abs(offset) * 2; // Decay away from center
+              timePoints[t][cellKey] = Math.min(1, (timePoints[t][cellKey] || 0) + spikeHeight * decay);
+            }
           }
         });
       });
     });
 
-    return Object.values(timePoints).sort((a, b) => (a.time as number) - (b.time as number));
+    return Object.values(timePoints)
+      .sort((a, b) => (a.time as number) - (b.time as number));
   }, [data]);
 
   const links = Object.keys(data.topology);
@@ -143,26 +160,28 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
                   </span>
                 </div>
 
-                <div className="h-48">
+                <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                    <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                       <XAxis
                         dataKey="time"
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={11}
                         tickLine={false}
-                        axisLine={false}
-                        label={{ value: "Time (s)", position: "bottom", fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        axisLine={{ stroke: "hsl(var(--border))" }}
+                        tickFormatter={(v) => `${v.toFixed(1)}s`}
+                        interval={9}
                       />
                       <YAxis
                         stroke="hsl(var(--muted-foreground))"
                         fontSize={11}
                         tickLine={false}
-                        axisLine={false}
+                        axisLine={{ stroke: "hsl(var(--border))" }}
                         domain={[0, 1]}
-                        tickFormatter={(v) => v.toFixed(1)}
-                        label={{ value: "Loss fraction", angle: -90, position: "insideLeft", fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        ticks={[0, 0.25, 0.5, 0.75, 1]}
+                        tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+                        width={45}
                       />
                       <Tooltip
                         contentStyle={{
@@ -170,26 +189,39 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "8px",
                           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          fontSize: "12px",
                         }}
-                        labelStyle={{ color: "hsl(var(--foreground))" }}
+                        labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                        labelFormatter={(value) => `Time: ${value}s`}
+                        formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, ""]}
                       />
                       <Legend
-                        wrapperStyle={{ fontSize: "11px" }}
+                        wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }}
                         iconType="circle"
                         iconSize={8}
                       />
-                      {cells.map((cellId, idx) => (
+                      {cells.slice(0, 6).map((cellId, idx) => (
                         <Line
                           key={cellId}
                           type="monotone"
                           dataKey={`cell_${cellId}`}
                           name={`Cell ${cellId}`}
                           stroke={CELL_COLORS[idx % CELL_COLORS.length]}
-                          strokeWidth={1.5}
+                          strokeWidth={2}
                           dot={false}
-                          activeDot={{ r: 4, fill: CELL_COLORS[idx % CELL_COLORS.length] }}
+                          activeDot={{ r: 5, fill: CELL_COLORS[idx % CELL_COLORS.length], strokeWidth: 2, stroke: "hsl(var(--background))" }}
+                          connectNulls
                         />
                       ))}
+                      {cells.length > 6 && (
+                        <Line
+                          type="monotone"
+                          dataKey={() => null}
+                          name={`+${cells.length - 6} more cells`}
+                          stroke="hsl(var(--muted-foreground))"
+                          strokeWidth={0}
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
