@@ -49,16 +49,13 @@ const Index = () => {
         {/* Simulator CTA */}
         <div className="relative overflow-hidden border-b border-border/50">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-secondary/10 to-accent/5" />
-          <div className="absolute inset-0 scan-line" />
-          <div className="container mx-auto px-6 py-3 flex items-center justify-between relative">
-            <div className="flex items-center gap-3 text-sm">
-              <Zap className="w-4 h-4 text-accent" />
-              <span className="text-muted-foreground">
-                Explore traffic scenarios with the
-              </span>
-            </div>
+          <div className="container mx-auto px-6 py-3 flex items-center gap-4 relative">
+            <Zap className="w-4 h-4 text-accent flex-shrink-0" />
+            <span className="text-sm text-muted-foreground">
+              Explore traffic scenarios with the
+            </span>
             <Link to="/simulator">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 border-0 shadow-lg shadow-primary/20">
+              <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 border-0 shadow-lg shadow-primary/20">
                 <FlaskConical className="w-4 h-4" />
                 What-If Simulator
               </Button>
