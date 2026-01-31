@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Header } from "@/components/layout/Header";
+import { NetworkBackground } from "@/components/layout/NetworkBackground";
 import { mockAnalysisData } from "@/data/mockData";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,8 @@ import {
   CheckCircle2,
   ArrowRight,
   Zap,
-  Radio
+  Radio,
+  Hexagon
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -103,47 +105,65 @@ const Simulator = () => {
   }, [simulationRun, modifications, data]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="min-h-screen bg-background relative">
+      {/* Animated network background */}
+      <NetworkBackground />
       
-      {/* Navigation Back */}
-      <div className="border-b border-border bg-card/30">
-        <div className="container mx-auto px-6 py-3">
-          <Link 
-            to="/" 
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowRight className="w-4 h-4 rotate-180" />
-            Back to Analysis
-          </Link>
+      <div className="relative z-10">
+        <Header />
+        
+        {/* Navigation Back */}
+        <div className="border-b border-border/50 bg-card/20 backdrop-blur-md">
+          <div className="container mx-auto px-6 py-3">
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-accent transition-colors group"
+            >
+              <ArrowRight className="w-4 h-4 rotate-180 group-hover:-translate-x-1 transition-transform" />
+              Back to Analysis
+            </Link>
+          </div>
         </div>
-      </div>
 
-      <main className="container mx-auto px-6 py-8 space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <FlaskConical className="w-8 h-8 text-primary" />
+        <main className="container mx-auto px-6 py-8 space-y-8">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-secondary/30 blur-xl rounded-full" />
+                <div className="relative p-4 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl border border-primary/30 animate-glow-pulse">
+                  <FlaskConical className="w-8 h-8 text-accent" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground font-display tracking-wide">
+                  What-If <span className="text-accent">Simulator</span>
+                </h1>
+                <p className="text-muted-foreground flex items-center gap-2">
+                  <Hexagon className="w-3 h-3 text-primary" />
+                  Simulate traffic changes and predict network impact
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">What-If Simulator</h1>
-              <p className="text-muted-foreground">
-                Simulate traffic changes and see predicted impact on network capacity
-              </p>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                onClick={resetAll} 
+                className="gap-2 border-border/50 hover:border-primary/50 hover:bg-primary/10"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset All
+              </Button>
+              <Button 
+                onClick={runSimulation} 
+                disabled={modifications.length === 0} 
+                className="gap-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 border-0 shadow-lg shadow-primary/20"
+              >
+                <Play className="w-4 h-4" />
+                Run Simulation
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={resetAll} className="gap-2">
-              <RotateCcw className="w-4 h-4" />
-              Reset All
-            </Button>
-            <Button onClick={runSimulation} disabled={modifications.length === 0} className="gap-2">
-              <Play className="w-4 h-4" />
-              Run Simulation
-            </Button>
-          </div>
-        </div>
 
         {/* Active Modifications Summary */}
         {modifications.length > 0 && (
@@ -175,17 +195,17 @@ const Simulator = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Cell Traffic Controls */}
-          <Card>
+          <Card className="section-card border-gradient">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Radio className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 font-display">
+                <Radio className="w-5 h-5 text-accent" />
                 Cell Traffic Adjustments
               </CardTitle>
               <CardDescription>
                 Adjust traffic levels for individual cells to see predicted network impact
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 max-h-[500px] overflow-y-auto">
+            <CardContent className="space-y-4 max-h-[500px] overflow-y-auto scrollbar-thin">
               {allCells.map((cellId) => {
                 const linkId = getCellLink(cellId);
                 const currentMod = modifications.find((m) => m.cellId === cellId);
@@ -196,25 +216,44 @@ const Simulator = () => {
                     key={cellId}
                     className={`p-4 rounded-lg border transition-all ${
                       changePercent !== 0
-                        ? "border-primary bg-primary/5"
-                        : "border-border bg-card/50 hover:bg-card"
+                        ? "border-accent/50 bg-accent/5 shadow-lg shadow-accent/10"
+                        : "border-border/50 bg-card/30 hover:bg-card/50 hover:border-primary/30"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold font-mono ${
+                            changePercent !== 0 
+                              ? "bg-gradient-to-br from-accent/30 to-primary/30 text-accent border border-accent/30" 
+                              : "bg-primary/10 text-primary border border-primary/20"
+                          }`}
+                          style={{ boxShadow: changePercent !== 0 ? '0 0 15px hsl(180 100% 45% / 0.3)' : undefined }}
+                        >
                           {cellId}
                         </div>
                         <div>
                           <span className="font-medium text-foreground">Cell {cellId}</span>
-                          <span className="text-xs text-muted-foreground ml-2">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Hexagon className="w-3 h-3 text-secondary" />
                             Link {linkId}
-                          </span>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {changePercent !== 0 && (
-                          <Badge variant={changePercent > 0 ? "default" : "secondary"}>
+                          <Badge 
+                            className={`gap-1 ${
+                              changePercent > 0 
+                                ? "bg-[hsl(var(--status-low))]/20 text-[hsl(var(--status-low))] border-[hsl(var(--status-low))]/30" 
+                                : "bg-[hsl(var(--status-high))]/20 text-[hsl(var(--status-high))] border-[hsl(var(--status-high))]/30"
+                            }`}
+                          >
+                            {changePercent > 0 ? (
+                              <TrendingUp className="w-3 h-3" />
+                            ) : (
+                              <TrendingDown className="w-3 h-3" />
+                            )}
                             {changePercent > 0 ? "+" : ""}
                             {changePercent}%
                           </Badge>
@@ -222,7 +261,7 @@ const Simulator = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs text-muted-foreground w-8">-50%</span>
+                      <span className="text-xs text-muted-foreground w-8 font-mono">-50%</span>
                       <Slider
                         value={[changePercent]}
                         onValueChange={([v]) => updateModification(cellId, v)}
@@ -231,7 +270,7 @@ const Simulator = () => {
                         step={1}
                         className="flex-1"
                       />
-                      <span className="text-xs text-muted-foreground w-8">+50%</span>
+                      <span className="text-xs text-muted-foreground w-8 font-mono">+50%</span>
                     </div>
                   </div>
                 );
@@ -240,10 +279,10 @@ const Simulator = () => {
           </Card>
 
           {/* Simulation Results */}
-          <Card>
+          <Card className="section-card border-gradient">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
+              <CardTitle className="flex items-center gap-2 font-display">
+                <TrendingUp className="w-5 h-5 text-accent" />
                 Simulation Results
               </CardTitle>
               <CardDescription>
@@ -253,8 +292,11 @@ const Simulator = () => {
             <CardContent>
               {!simulationRun ? (
                 <div className="h-64 flex flex-col items-center justify-center text-center text-muted-foreground">
-                  <FlaskConical className="w-12 h-12 mb-4 opacity-40" />
-                  <p className="text-lg font-medium">No simulation running</p>
+                  <div className="relative mb-4">
+                    <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                    <FlaskConical className="relative w-16 h-16 opacity-40 text-primary" />
+                  </div>
+                  <p className="text-lg font-medium font-display">No simulation running</p>
                   <p className="text-sm">
                     Adjust cell traffic levels and click "Run Simulation" to see predictions
                   </p>
@@ -361,6 +403,7 @@ const Simulator = () => {
           </Card>
         </div>
       </main>
+      </div>
     </div>
   );
 };
