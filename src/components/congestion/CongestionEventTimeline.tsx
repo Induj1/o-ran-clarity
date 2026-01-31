@@ -17,9 +17,9 @@ const LINK_CONFIG: Record<string, { color: string; label: string }> = {
 export function CongestionEventTimeline({ events }: CongestionEventTimelineProps) {
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
 
-  // Group events by link
+  // Group events by link and calculate positions with offset for overlapping events
   const eventsByLink = useMemo(() => {
-    const grouped: Record<string, CongestionEvent[]> = {
+    const grouped: Record<string, (CongestionEvent & { displayOffset: number })[]> = {
       "Link 1": [],
       "Link 2": [],
       "Link 3": [],
@@ -27,13 +27,26 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
     
     events.forEach((event) => {
       if (grouped[event.link_id]) {
-        grouped[event.link_id].push(event);
+        grouped[event.link_id].push({ ...event, displayOffset: 0 });
       }
     });
     
-    // Sort each link's events by timestamp
+    // Sort each link's events by timestamp and calculate offsets for close events
     Object.keys(grouped).forEach((linkId) => {
       grouped[linkId].sort((a, b) => a.timestamp - b.timestamp);
+      
+      // Calculate offsets for events that are too close together
+      for (let i = 1; i < grouped[linkId].length; i++) {
+        const current = grouped[linkId][i];
+        const previous = grouped[linkId][i - 1];
+        const timeDiff = current.timestamp - previous.timestamp;
+        
+        // If events are within 0.1s of each other, offset them
+        if (timeDiff < 0.1) {
+          // Stack offset: each overlapping event gets pushed right by 18px
+          current.displayOffset = previous.displayOffset + 18;
+        }
+      }
     });
     
     return grouped;
@@ -135,8 +148,11 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
                       <Tooltip key={idx}>
                         <TooltipTrigger asChild>
                           <div
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-all duration-200"
-                            style={{ left: `${getPositionPercent(event.timestamp)}%` }}
+                            className="absolute top-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200"
+                            style={{ 
+                              left: `${getPositionPercent(event.timestamp)}%`,
+                              marginLeft: `${event.displayOffset}px`,
+                            }}
                             onMouseEnter={() => setHoveredEvent(eventId)}
                             onMouseLeave={() => setHoveredEvent(null)}
                           >
