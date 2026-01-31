@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AnalysisResponse } from "@/types/api";
 
-const API_BASE_URL = "https://a41b05b2d1ae.ngrok-free.app";
+const API_BASE_URL = "https://cdd06d042eca.ngrok-free.app";
 
 async function fetchAnalysisData(): Promise<AnalysisResponse> {
   const response = await fetch(`${API_BASE_URL}/analyze`, {
