@@ -9,15 +9,17 @@ import { CongestionSection } from "@/components/congestion/CongestionSection";
 import { SummarySection } from "@/components/summary/SummarySection";
 import { ReportSection } from "@/components/report/ReportSection";
 import { TrafficPatternChart } from "@/components/analysis/TrafficPatternChart";
-import { mockAnalysisData } from "@/data/mockData";
-import { FlaskConical, Zap } from "lucide-react";
+import { useAnalysisData } from "@/hooks/useAnalysisData";
+import { FlaskConical, Zap, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState("topology");
-  const data = mockAnalysisData;
+  const { data, isLoading, error } = useAnalysisData();
 
   const renderSection = () => {
+    if (!data) return null;
+    
     switch (activeSection) {
       case "topology":
         return <TopologySection data={data} />;
@@ -37,6 +39,29 @@ const Index = () => {
       default:
         return <TopologySection data={data} />;
     }
+  };
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="text-muted-foreground">Loading analysis data...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <AlertCircle className="w-10 h-10 text-destructive" />
+          <p className="text-foreground font-medium">Failed to load data</p>
+          <p className="text-muted-foreground text-sm">{error.message}</p>
+        </div>
+      );
+    }
+
+    return renderSection();
   };
 
   return (
@@ -67,7 +92,7 @@ const Index = () => {
         </div>
         
         <main className="container mx-auto px-6 py-8">
-          {renderSection()}
+          {renderContent()}
         </main>
       </div>
     </div>
