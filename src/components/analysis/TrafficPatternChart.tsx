@@ -7,95 +7,96 @@ interface TrafficPatternChartProps {
   data: AnalysisResponse;
 }
 
-// Generate distinct colors for cells
-const CELL_COLORS = [
+// Generate distinct colors for links
+const LINK_COLORS = [
   "hsl(195, 70%, 50%)",   // chart-1
   "hsl(168, 55%, 45%)",   // chart-2
   "hsl(142, 50%, 48%)",   // chart-3
   "hsl(38, 75%, 55%)",    // chart-4
   "hsl(280, 45%, 55%)",   // chart-5
-  "hsl(0, 65%, 55%)",     // chart-6
-  "hsl(210, 60%, 55%)",   // chart-7
-  "hsl(320, 50%, 55%)",   // chart-8
-  "hsl(60, 60%, 45%)",
-  "hsl(180, 50%, 45%)",
-  "hsl(240, 50%, 55%)",
-  "hsl(300, 45%, 50%)",
 ];
 
 export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
   const [selectedLink, setSelectedLink] = useState<string | null>(null);
 
-  // Generate simulated packet loss data based on root cause attribution
-  const chartData = useMemo(() => {
-    const timePoints: Record<number, Record<string, number>> = {};
-    
-    // Use a time range from 0 to 10 seconds with 0.2s intervals
-    for (let t = 0; t <= 10; t += 0.2) {
-      const roundedT = Math.round(t * 10) / 10;
-      timePoints[roundedT] = { time: roundedT };
+  // Transform traffic_patterns from API into chart data format
+  const { chartData, timeRange } = useMemo(() => {
+    const links = Object.keys(data.traffic_patterns || {});
+    if (links.length === 0) {
+      return { chartData: [], timeRange: { min: 0, max: 60 } };
     }
 
-    // Get all unique cell IDs
-    const allCells = new Set<number>();
-    Object.values(data.topology).forEach((cells) => {
-      cells.forEach((cellId) => allCells.add(cellId));
+    // Get all unique time points across all links
+    const allTimePoints = new Set<number>();
+    links.forEach((linkId) => {
+      const pattern = data.traffic_patterns[linkId];
+      if (pattern?.time_seconds) {
+        pattern.time_seconds.forEach((t) => allTimePoints.add(t));
+      }
     });
 
-    // Create unique patterns for each cell with different phases and frequencies
-    const cellPatterns: Record<number, { phase: number; freq: number; baseLevel: number }> = {};
-    Array.from(allCells).forEach((cellId, idx) => {
-      cellPatterns[cellId] = {
-        phase: (idx * 1.3) % (Math.PI * 2),
-        freq: 0.3 + (idx % 5) * 0.15,
-        baseLevel: 0.05 + (idx % 4) * 0.08,
-      };
-    });
+    const sortedTimes = Array.from(allTimePoints).sort((a, b) => a - b);
+    const minTime = sortedTimes[0] || 0;
+    const maxTime = sortedTimes[sortedTimes.length - 1] || 60;
 
-    // Initialize all cells with unique wave patterns
-    Object.keys(timePoints).forEach((tKey) => {
-      const t = parseFloat(tKey);
-      allCells.forEach((cellId) => {
-        const cellKey = `cell_${cellId}`;
-        const pattern = cellPatterns[cellId];
-        // Create unique oscillating pattern per cell
-        const wave = Math.sin(t * pattern.freq + pattern.phase) * 0.1;
-        const noise = (Math.random() - 0.5) * 0.04;
-        timePoints[t][cellKey] = Math.max(0, pattern.baseLevel + wave + noise);
-      });
-    });
-
-    // Add distinct spikes at different times based on root cause attribution
-    Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
-      events.forEach((event, eventIdx) => {
-        // Spread events across the 0-10s range with offsets per event
-        const baseTime = (eventIdx + 1) * 1.5 + parseInt(linkId) * 0.5;
-        
-        event.contributions.forEach((contrib, contribIdx) => {
-          const cellKey = `cell_${contrib.cell}`;
-          
-          // Each contributor gets a slightly different spike time
-          const spikeTime = baseTime + contribIdx * 0.6;
-          
-          // Create a bell-curve spike
-          for (let offset = -0.8; offset <= 0.8; offset += 0.2) {
-            const t = Math.round((spikeTime + offset) * 10) / 10;
-            if (t >= 0 && t <= 10 && timePoints[t]) {
-              const spikeHeight = (contrib.percentage / 100) * (0.5 + Math.random() * 0.2);
-              const decay = Math.exp(-Math.pow(offset, 2) * 3); // Gaussian decay
-              const currentVal = timePoints[t][cellKey] || 0;
-              timePoints[t][cellKey] = Math.min(1, currentVal + spikeHeight * decay);
-            }
+    // Build chart data with all links' data rates at each time point
+    const chartData = sortedTimes.map((time) => {
+      const point: Record<string, number> = { time };
+      
+      links.forEach((linkId) => {
+        const pattern = data.traffic_patterns[linkId];
+        if (pattern?.time_seconds && pattern?.data_rate_gbps) {
+          const idx = pattern.time_seconds.indexOf(time);
+          if (idx !== -1) {
+            point[`link_${linkId}`] = pattern.data_rate_gbps[idx];
           }
-        });
+        }
       });
+      
+      return point;
     });
 
-    return Object.values(timePoints)
-      .sort((a, b) => (a.time as number) - (b.time as number));
+    return { 
+      chartData, 
+      timeRange: { min: minTime, max: maxTime } 
+    };
   }, [data]);
 
-  const links = Object.keys(data.topology);
+  const links = Object.keys(data.traffic_patterns || {});
+
+  // Calculate appropriate tick interval based on time range
+  const tickInterval = useMemo(() => {
+    const range = timeRange.max - timeRange.min;
+    if (range <= 10) return 1;
+    if (range <= 30) return 5;
+    if (range <= 60) return 10;
+    return Math.ceil(range / 6);
+  }, [timeRange]);
+
+  // Generate tick values
+  const tickValues = useMemo(() => {
+    const ticks: number[] = [];
+    for (let t = Math.ceil(timeRange.min / tickInterval) * tickInterval; t <= timeRange.max; t += tickInterval) {
+      ticks.push(t);
+    }
+    return ticks;
+  }, [timeRange, tickInterval]);
+
+  if (links.length === 0) {
+    return (
+      <div className="section-card">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Activity className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="section-title mb-0">Traffic Pattern</h3>
+            <p className="text-sm text-muted-foreground">No traffic data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section-card space-y-6">
@@ -106,13 +107,15 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
             <Activity className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="section-title mb-0">Traffic Pattern Snapshot</h3>
-            <p className="text-sm text-muted-foreground">Correlated Packet Loss (cells sharing link correlate)</p>
+            <h3 className="section-title mb-0">Traffic Pattern</h3>
+            <p className="text-sm text-muted-foreground">
+              Data rate over time ({timeRange.min.toFixed(0)}s - {timeRange.max.toFixed(0)}s)
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Real-time correlation analysis</span>
+          <span className="text-xs text-muted-foreground">Live traffic analysis</span>
         </div>
       </div>
 
@@ -143,101 +146,111 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
         ))}
       </div>
 
-      {/* Charts per Link */}
-      <div className="space-y-6">
+      {/* Chart */}
+      <div className="p-4 rounded-xl border border-border bg-card/50">
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis
+                dataKey="time"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={11}
+                tickLine={false}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickFormatter={(v) => `${v}s`}
+                ticks={tickValues}
+                domain={[timeRange.min, timeRange.max]}
+              />
+              <YAxis
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={11}
+                tickLine={false}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                tickFormatter={(v) => `${v.toFixed(1)} Gbps`}
+                width={70}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  fontSize: "12px",
+                }}
+                labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                labelFormatter={(value) => `Time: ${value}s`}
+                formatter={(value: number, name: string) => [
+                  `${value.toFixed(2)} Gbps`,
+                  name.replace("link_", "Link "),
+                ]}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }}
+                iconType="circle"
+                iconSize={8}
+                formatter={(value) => value.replace("link_", "Link ")}
+              />
+              {links
+                .filter((linkId) => selectedLink === null || selectedLink === linkId)
+                .map((linkId, idx) => (
+                  <Line
+                    key={linkId}
+                    type="monotone"
+                    dataKey={`link_${linkId}`}
+                    name={`link_${linkId}`}
+                    stroke={LINK_COLORS[idx % LINK_COLORS.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ 
+                      r: 5, 
+                      fill: LINK_COLORS[idx % LINK_COLORS.length], 
+                      strokeWidth: 2, 
+                      stroke: "hsl(var(--background))" 
+                    }}
+                    connectNulls
+                  />
+                ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Link Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {links
           .filter((linkId) => selectedLink === null || selectedLink === linkId)
-          .map((linkId) => {
-            const cells = data.topology[linkId];
-            const confidence = data.confidence[linkId];
+          .map((linkId, idx) => {
+            const pattern = data.traffic_patterns[linkId];
+            const rates = pattern?.data_rate_gbps || [];
+            const maxRate = Math.max(...rates);
+            const avgRate = rates.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
+            const confidence = data.confidence?.[linkId] || 0;
 
             return (
               <div
                 key={linkId}
-                className="p-4 rounded-xl border border-border bg-card/50 hover:bg-card transition-colors"
+                className="p-4 rounded-xl border border-border bg-card/50"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: CELL_COLORS[parseInt(linkId) % CELL_COLORS.length] }}
-                    />
-                    <span className="font-medium text-foreground">
-                      Link {linkId} - packet loss over time
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      (cells sharing link correlate)
-                    </span>
-                  </div>
-                  <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
+                <div className="flex items-center gap-2 mb-3">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: LINK_COLORS[idx % LINK_COLORS.length] }}
+                  />
+                  <span className="font-medium text-foreground">Link {linkId}</span>
+                  <span className="text-xs px-2 py-0.5 bg-status-medium/10 text-status-medium rounded-full ml-auto">
                     {confidence}% confidence
                   </span>
                 </div>
-
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                      <XAxis
-                        dataKey="time"
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={{ stroke: "hsl(var(--border))" }}
-                        tickFormatter={(v) => `${v.toFixed(1)}s`}
-                        interval={9}
-                      />
-                      <YAxis
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={11}
-                        tickLine={false}
-                        axisLine={{ stroke: "hsl(var(--border))" }}
-                        domain={[0, 1]}
-                        ticks={[0, 0.25, 0.5, 0.75, 1]}
-                        tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-                        width={45}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          fontSize: "12px",
-                        }}
-                        labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-                        labelFormatter={(value) => `Time: ${value}s`}
-                        formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, ""]}
-                      />
-                      <Legend
-                        wrapperStyle={{ fontSize: "11px", paddingTop: "10px" }}
-                        iconType="circle"
-                        iconSize={8}
-                      />
-                      {cells.slice(0, 6).map((cellId, idx) => (
-                        <Line
-                          key={cellId}
-                          type="monotone"
-                          dataKey={`cell_${cellId}`}
-                          name={`Cell ${cellId}`}
-                          stroke={CELL_COLORS[idx % CELL_COLORS.length]}
-                          strokeWidth={2}
-                          dot={false}
-                          activeDot={{ r: 5, fill: CELL_COLORS[idx % CELL_COLORS.length], strokeWidth: 2, stroke: "hsl(var(--background))" }}
-                          connectNulls
-                        />
-                      ))}
-                      {cells.length > 6 && (
-                        <Line
-                          type="monotone"
-                          dataKey={() => null}
-                          name={`+${cells.length - 6} more cells`}
-                          stroke="hsl(var(--muted-foreground))"
-                          strokeWidth={0}
-                        />
-                      )}
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <div className="text-muted-foreground text-xs">Peak Rate</div>
+                    <div className="font-mono font-medium">{maxRate.toFixed(2)} Gbps</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground text-xs">Avg Rate</div>
+                    <div className="font-mono font-medium">{avgRate.toFixed(2)} Gbps</div>
+                  </div>
                 </div>
               </div>
             );

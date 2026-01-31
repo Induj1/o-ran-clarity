@@ -7,23 +7,42 @@ interface CongestionEventTimelineProps {
   events: CongestionEvent[];
 }
 
-// Link colors matching the design system
-const LINK_CONFIG: Record<string, { color: string; label: string }> = {
-  "Link 1": { color: "hsl(var(--chart-1))", label: "Link 1" },
-  "Link 2": { color: "hsl(var(--chart-2))", label: "Link 2" },
-  "Link 3": { color: "hsl(var(--chart-3))", label: "Link 3" },
-};
+// Generate colors for links dynamically
+const LINK_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(38, 75%, 55%)",
+  "hsl(280, 45%, 55%)",
+  "hsl(320, 50%, 55%)",
+];
 
 export function CongestionEventTimeline({ events }: CongestionEventTimelineProps) {
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
 
+  // Get unique links from events and assign colors
+  const linkConfig = useMemo(() => {
+    const uniqueLinks = [...new Set(events.map((e) => e.link_id))].sort();
+    const config: Record<string, { color: string; label: string }> = {};
+    uniqueLinks.forEach((linkId, idx) => {
+      config[linkId] = {
+        color: LINK_COLORS[idx % LINK_COLORS.length],
+        label: linkId,
+      };
+    });
+    return config;
+  }, [events]);
+
   // Group events by link and calculate positions with offset for overlapping events
   const eventsByLink = useMemo(() => {
-    const grouped: Record<string, (CongestionEvent & { displayOffset: number })[]> = {
-      "Link 1": [],
-      "Link 2": [],
-      "Link 3": [],
-    };
+    const grouped: Record<string, (CongestionEvent & { displayOffset: number })[]> = {};
+    
+    // Initialize all links
+    Object.keys(linkConfig).forEach((linkId) => {
+      grouped[linkId] = [];
+    });
     
     events.forEach((event) => {
       if (grouped[event.link_id]) {
@@ -41,19 +60,18 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
         const previous = grouped[linkId][i - 1];
         const timeDiff = current.timestamp - previous.timestamp;
         
-        // If events are within 0.1s of each other, offset them
-        if (timeDiff < 0.1) {
-          // Stack offset: each overlapping event gets pushed right by 18px
+        // If events are within 0.5s of each other, offset them
+        if (timeDiff < 0.5) {
           current.displayOffset = previous.displayOffset + 18;
         }
       }
     });
     
     return grouped;
-  }, [events]);
+  }, [events, linkConfig]);
 
   const timeRange = useMemo(() => {
-    if (events.length === 0) return { min: 0, max: 1 };
+    if (events.length === 0) return { min: 0, max: 60 };
     const timestamps = events.map((e) => e.timestamp);
     return {
       min: Math.min(...timestamps),
@@ -63,17 +81,33 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
 
   const getPositionPercent = (timestamp: number) => {
     const range = timeRange.max - timeRange.min;
-    if (range === 0) return 5;
+    if (range === 0) return 50;
     return 5 + ((timestamp - timeRange.min) / range) * 90; // 5-95% range
   };
 
-  // Generate time markers
+  // Generate time markers based on actual data range
   const timeMarkers = useMemo(() => {
     const { min, max } = timeRange;
     const range = max - min;
-    const step = range / 4;
-    return [min, min + step, min + step * 2, min + step * 3, max];
+    const numMarkers = 5;
+    const step = range / (numMarkers - 1);
+    const markers: number[] = [];
+    for (let i = 0; i < numMarkers; i++) {
+      markers.push(min + step * i);
+    }
+    return markers;
   }, [timeRange]);
+
+  if (events.length === 0) {
+    return (
+      <div className="section-card">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Clock className="w-4 h-4" />
+          <span>No congestion events recorded</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -85,7 +119,7 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
             <span className="font-medium">Event Timeline</span>
           </div>
           <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
-            {timeRange.min.toFixed(2)}s → {timeRange.max.toFixed(2)}s
+            {timeRange.min.toFixed(1)}s → {timeRange.max.toFixed(1)}s
           </span>
         </div>
 
@@ -101,14 +135,14 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
                   className="absolute text-[10px] text-muted-foreground font-mono -translate-x-1/2"
                   style={{ left: `${getPositionPercent(time)}%` }}
                 >
-                  {time.toFixed(2)}s
+                  {time.toFixed(1)}s
                 </span>
               ))}
             </div>
           </div>
 
           {/* Link lanes */}
-          {Object.entries(LINK_CONFIG).map(([linkId, config]) => {
+          {Object.entries(linkConfig).map(([linkId, config]) => {
             const linkEvents = eventsByLink[linkId] || [];
             
             return (
@@ -201,15 +235,12 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
                             
                             <div className="space-y-1.5">
                               {event.contributors.slice(0, 3).map((contrib, cIdx) => {
-                                const cellId = contrib.cell_id.startsWith("Cell ") 
-                                  ? contrib.cell_id 
-                                  : `Cell ${contrib.cell_id}`;
                                 const isHigh = contrib.contribution_percent > 20;
                                 
                                 return (
                                   <div key={cIdx} className="flex items-center justify-between gap-2 text-xs">
                                     <span className={isHigh ? "text-[hsl(var(--status-medium))] font-medium" : "text-muted-foreground"}>
-                                      {cellId}
+                                      {contrib.cell_id}
                                     </span>
                                     <div className="flex items-center gap-1.5">
                                       <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -253,8 +284,8 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
         </div>
 
         {/* Summary stats */}
-        <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border/50">
-          {Object.entries(LINK_CONFIG).map(([linkId, config]) => {
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border/50">
+          {Object.entries(linkConfig).map(([linkId, config]) => {
             const linkEvents = eventsByLink[linkId] || [];
             const totalContributors = linkEvents.reduce(
               (acc, e) => acc + e.contributors.length, 

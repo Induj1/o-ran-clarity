@@ -88,7 +88,7 @@ export function CongestionTimeline({ events }: CongestionTimelineProps) {
               tickLine={false}
               axisLine={false}
               tickFormatter={(value) => `${value}%`}
-              domain={[0, 40]}
+              domain={[0, 'auto']}
             />
             <Tooltip
               contentStyle={{
