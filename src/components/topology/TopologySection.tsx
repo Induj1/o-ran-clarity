@@ -1,5 +1,6 @@
 import { AnalysisResponse } from "@/types/api";
 import { TopologyGraph } from "./TopologyGraph";
+import { CorrelationHeatmap } from "../correlation/CorrelationHeatmap";
 import { Info } from "lucide-react";
 
 interface TopologySectionProps {
@@ -50,6 +51,9 @@ export function TopologySection({ data }: TopologySectionProps) {
         <TopologyGraph data={data} />
       </div>
 
+      {/* Correlation Heatmap */}
+      <CorrelationHeatmap data={data} />
+
       {/* Explanation */}
       <div className="explanation-box flex gap-3">
         <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
@@ -59,6 +63,7 @@ export function TopologySection({ data }: TopologySectionProps) {
             Cells sharing the same fronthaul link experience correlated packet loss during congestion.
             The system infers topology automatically by analyzing these correlation patterns and assigns 
             a confidence score to each link based on the strength of observed correlations.
+            The correlation matrix heatmap shows which cells are highly correlated (share same link).
           </p>
         </div>
       </div>
