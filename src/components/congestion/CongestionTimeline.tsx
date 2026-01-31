@@ -1,5 +1,5 @@
 import { CongestionEvent } from "@/types/api";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import {
   LineChart,
   Line,
@@ -15,7 +15,6 @@ interface CongestionTimelineProps {
   events: CongestionEvent[];
 }
 
-// Generate distinct colors for cells
 const CELL_COLORS = [
   "hsl(var(--primary))",
   "hsl(var(--status-medium))",
@@ -27,38 +26,46 @@ const CELL_COLORS = [
   "hsl(330, 81%, 60%)",
 ];
 
-export function CongestionTimeline({ events }: CongestionTimelineProps) {
-  // Transform events into chart data format
+const MAX_EVENTS = 100; // Limit chart data points
+
+export const CongestionTimeline = memo(function CongestionTimeline({ events }: CongestionTimelineProps) {
   const { chartData, allCells, cellColors } = useMemo(() => {
-    // Get all unique cells across all events
+    // Downsample events if too many
+    let sampled = events;
+    if (events.length > MAX_EVENTS) {
+      const step = events.length / MAX_EVENTS;
+      sampled = [];
+      for (let i = 0; i < MAX_EVENTS; i++) {
+        sampled.push(events[Math.floor(i * step)]);
+      }
+    }
+
+    // Get unique cells
     const cellSet = new Set<string>();
-    events.forEach((event) => {
+    sampled.forEach((event) => {
       event.contributors.forEach((c) => cellSet.add(c.cell_id));
     });
-    const allCells = Array.from(cellSet).sort();
+    const allCells = Array.from(cellSet).sort().slice(0, 8); // Limit to 8 cells for readability
 
-    // Assign colors to cells
+    // Assign colors
     const cellColors: Record<string, string> = {};
     allCells.forEach((cell, idx) => {
       cellColors[cell] = CELL_COLORS[idx % CELL_COLORS.length];
     });
 
-    // Build chart data points
-    const chartData = events
+    // Build chart data
+    const chartData = sampled
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((event) => {
         const point: Record<string, number | string> = {
           timestamp: event.timestamp,
-          time: `t=${event.timestamp.toFixed(2)}s`,
-          link: event.link_id,
+          time: `${event.timestamp.toFixed(1)}s`,
         };
-        // Initialize all cells to 0
-        allCells.forEach((cell) => {
-          point[cell] = 0;
-        });
-        // Set actual contribution values
+        allCells.forEach((cell) => (point[cell] = 0));
         event.contributors.forEach((c) => {
-          point[c.cell_id] = c.contribution_percent;
+          if (allCells.includes(c.cell_id)) {
+            point[c.cell_id] = c.contribution_percent;
+          }
         });
         return point;
       });
@@ -66,47 +73,45 @@ export function CongestionTimeline({ events }: CongestionTimelineProps) {
     return { chartData, allCells, cellColors };
   }, [events]);
 
+  if (chartData.length === 0) {
+    return null;
+  }
+
   return (
     <div className="section-card">
-      <div className="h-[400px] w-full">
+      <div className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-          >
+          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
             <XAxis
               dataKey="time"
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={11}
               tickLine={false}
               axisLine={false}
+              interval="preserveStartEnd"
             />
             <YAxis
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `${value}%`}
-              domain={[0, 'auto']}
+              tickFormatter={(v) => `${v}%`}
+              domain={[0, "auto"]}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
-                color: "hsl(var(--foreground))",
               }}
               labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
               formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
             />
             <Legend
-              wrapperStyle={{ paddingTop: "20px" }}
-              formatter={(value) => (
-                <span style={{ color: "hsl(var(--foreground))", fontSize: "12px" }}>
-                  {value}
-                </span>
-              )}
+              wrapperStyle={{ paddingTop: "10px", fontSize: "11px" }}
+              iconType="circle"
+              iconSize={8}
             />
             {allCells.map((cell) => (
               <Line
@@ -115,10 +120,9 @@ export function CongestionTimeline({ events }: CongestionTimelineProps) {
                 dataKey={cell}
                 stroke={cellColors[cell]}
                 strokeWidth={2}
-                dot={{ r: 4, fill: cellColors[cell] }}
-                activeDot={{ r: 6, strokeWidth: 2 }}
-                animationDuration={1500}
-                animationBegin={0}
+                dot={false}
+                activeDot={{ r: 4 }}
+                isAnimationActive={false}
               />
             ))}
           </LineChart>
@@ -126,4 +130,4 @@ export function CongestionTimeline({ events }: CongestionTimelineProps) {
       </div>
     </div>
   );
-}
+});
