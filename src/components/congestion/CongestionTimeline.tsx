@@ -1,5 +1,5 @@
 import { CongestionEvent } from "@/types/api";
-import { useMemo, memo } from "react";
+import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -26,11 +26,10 @@ const CELL_COLORS = [
   "hsl(330, 81%, 60%)",
 ];
 
-const MAX_EVENTS = 100; // Limit chart data points
+const MAX_EVENTS = 100;
 
-export const CongestionTimeline = memo(function CongestionTimeline({ events }: CongestionTimelineProps) {
+export function CongestionTimeline({ events }: CongestionTimelineProps) {
   const { chartData, allCells, cellColors } = useMemo(() => {
-    // Downsample events if too many
     let sampled = events;
     if (events.length > MAX_EVENTS) {
       const step = events.length / MAX_EVENTS;
@@ -40,20 +39,17 @@ export const CongestionTimeline = memo(function CongestionTimeline({ events }: C
       }
     }
 
-    // Get unique cells
     const cellSet = new Set<string>();
     sampled.forEach((event) => {
       event.contributors.forEach((c) => cellSet.add(c.cell_id));
     });
-    const allCells = Array.from(cellSet).sort().slice(0, 8); // Limit to 8 cells for readability
+    const allCells = Array.from(cellSet).sort().slice(0, 8);
 
-    // Assign colors
     const cellColors: Record<string, string> = {};
     allCells.forEach((cell, idx) => {
       cellColors[cell] = CELL_COLORS[idx % CELL_COLORS.length];
     });
 
-    // Build chart data
     const chartData = sampled
       .sort((a, b) => a.timestamp - b.timestamp)
       .map((event) => {
@@ -105,7 +101,6 @@ export const CongestionTimeline = memo(function CongestionTimeline({ events }: C
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
               }}
-              labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
               formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
             />
             <Legend
@@ -130,4 +125,4 @@ export const CongestionTimeline = memo(function CongestionTimeline({ events }: C
       </div>
     </div>
   );
-});
+}
