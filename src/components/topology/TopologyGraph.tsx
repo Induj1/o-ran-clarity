@@ -96,17 +96,50 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
   return (
     <div className="relative">
       {/* DU Node - Center Top */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-4">
         <div className="flex items-center gap-2 px-5 py-3 rounded-lg bg-node-du/20 text-node-du border border-node-du/30 font-semibold">
           <Server className="w-5 h-5" />
           DU (Distributed Unit)
         </div>
       </div>
 
-      {/* Connection Lines Container */}
+      {/* Connection Lines - SVG overlay */}
       <div className="relative">
+        {/* SVG for connection lines */}
+        <svg 
+          className="absolute top-0 left-0 w-full h-12 pointer-events-none overflow-visible"
+          style={{ zIndex: 1 }}
+        >
+          {/* Lines from DU to each link */}
+          {links.map((link, idx) => {
+            const level = getConfidenceLevel(link.confidence);
+            const totalLinks = links.length;
+            // Calculate x position for each link (evenly distributed)
+            const xPercent = ((idx + 0.5) / totalLinks) * 100;
+            
+            const strokeColor = level === "high" 
+              ? "hsl(var(--status-high))" 
+              : level === "medium" 
+                ? "hsl(var(--status-medium))" 
+                : "hsl(var(--status-low))";
+
+            return (
+              <line
+                key={link.link_id}
+                x1="50%"
+                y1="0"
+                x2={`${xPercent}%`}
+                y2="100%"
+                stroke={strokeColor}
+                strokeWidth="2"
+                strokeOpacity="0.5"
+              />
+            );
+          })}
+        </svg>
+
         {/* Links Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12 relative" style={{ zIndex: 2 }}>
           {links.map((link) => {
             const confidenceValue = link.confidence;
             const level = getConfidenceLevel(confidenceValue);
@@ -115,22 +148,12 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
               <div
                 key={link.link_id}
                 className={cn(
-                  "relative p-4 rounded-lg border transition-all",
-                  level === "high" && "border-status-high/30 bg-status-high/5",
-                  level === "medium" && "border-status-medium/30 bg-status-medium/5",
-                  level === "low" && "border-status-low/30 bg-status-low/5"
+                  "relative p-4 rounded-lg border transition-all bg-card",
+                  level === "high" && "border-status-high/30",
+                  level === "medium" && "border-status-medium/30",
+                  level === "low" && "border-status-low/30"
                 )}
               >
-                {/* Vertical connector line */}
-                <div
-                  className={cn(
-                    "absolute -top-8 left-1/2 -translate-x-1/2 w-0.5 h-8",
-                    level === "high" && "bg-status-high/50",
-                    level === "medium" && "bg-status-medium/50",
-                    level === "low" && "bg-status-low/50"
-                  )}
-                />
-
                 {/* Link Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
