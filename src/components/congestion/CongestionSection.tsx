@@ -1,6 +1,7 @@
 import { AnalysisResponse } from "@/types/api";
 import { CongestionTimeline } from "./CongestionTimeline";
 import { CongestionEventTimeline } from "./CongestionEventTimeline";
+import { CellFlowVisualization } from "./CellFlowVisualization";
 import { Info } from "lucide-react";
 import { useMemo } from "react";
 
@@ -10,17 +11,24 @@ interface CongestionSectionProps {
 
 export function CongestionSection({ data }: CongestionSectionProps) {
   const stats = useMemo(() => {
-    const events = data.root_cause_attribution.events;
-    const totalEvents = events.length;
-    
-    // Find most problematic cell
+    // Flatten all events across all links
+    let totalEvents = 0;
     const cellContributions: Record<string, number[]> = {};
-    events.forEach((event) => {
-      event.contributors.forEach((c) => {
-        if (!cellContributions[c.cell_id]) {
-          cellContributions[c.cell_id] = [];
-        }
-        cellContributions[c.cell_id].push(c.contribution_percent);
+    let highContributors = 0;
+
+    Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
+      totalEvents += events.length;
+      events.forEach((event) => {
+        event.contributors.forEach((c) => {
+          const cellKey = `Cell ${c.cell_id}`;
+          if (!cellContributions[cellKey]) {
+            cellContributions[cellKey] = [];
+          }
+          cellContributions[cellKey].push(c.pct);
+          if (c.pct > 20) {
+            highContributors++;
+          }
+        });
       });
     });
 
@@ -34,12 +42,31 @@ export function CongestionSection({ data }: CongestionSectionProps) {
       }
     });
 
-    // Count high contributors
-    const highContributors = events.flatMap((e) =>
-      e.contributors.filter((c) => c.contribution_percent > 20)
-    ).length;
-
     return { totalEvents, topCell, topAvg, highContributors };
+  }, [data]);
+
+  // Transform events for timeline components
+  const transformedEvents = useMemo(() => {
+    const events: Array<{
+      timestamp: number;
+      link_id: string;
+      contributors: Array<{ cell_id: string; contribution_percent: number }>;
+    }> = [];
+
+    Object.entries(data.root_cause_attribution).forEach(([linkId, linkEvents]) => {
+      linkEvents.forEach((event) => {
+        events.push({
+          timestamp: event.time_sec,
+          link_id: `Link ${linkId}`,
+          contributors: event.contributors.map((c) => ({
+            cell_id: `Cell ${c.cell_id}`,
+            contribution_percent: c.pct,
+          })),
+        });
+      });
+    });
+
+    return events.sort((a, b) => a.timestamp - b.timestamp);
   }, [data]);
 
   return (
@@ -64,13 +91,22 @@ export function CongestionSection({ data }: CongestionSectionProps) {
         </div>
       </div>
 
+      {/* Cell Flow Visualization */}
+      <div>
+        <h2 className="section-title mb-1">Cell → Link Flow</h2>
+        <p className="section-description">
+          Animated visualization showing how cells contribute traffic to each fronthaul link
+        </p>
+        <CellFlowVisualization data={data} />
+      </div>
+
       {/* Visual Event Timeline */}
       <div>
         <h2 className="section-title mb-1">Congestion Event Timeline</h2>
         <p className="section-description">
           Interactive timeline showing when congestion events occurred and which cells contributed
         </p>
-        <CongestionEventTimeline events={data.root_cause_attribution.events} />
+        <CongestionEventTimeline events={transformedEvents} />
       </div>
 
       {/* Line Chart */}
@@ -79,7 +115,7 @@ export function CongestionSection({ data }: CongestionSectionProps) {
         <p className="section-description">
           Line chart showing how cell contributions change across congestion events
         </p>
-        <CongestionTimeline events={data.root_cause_attribution.events} />
+        <CongestionTimeline events={transformedEvents} />
       </div>
 
       {/* Explanation */}

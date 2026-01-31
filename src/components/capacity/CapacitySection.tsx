@@ -1,19 +1,19 @@
 import { AnalysisResponse } from "@/types/api";
 import { CapacityChart } from "./CapacityChart";
-import { TrendingDown, Info, Zap } from "lucide-react";
+import { TrendingDown, Zap } from "lucide-react";
 
 interface CapacitySectionProps {
   data: AnalysisResponse;
 }
 
 export function CapacitySection({ data }: CapacitySectionProps) {
-  const maxSaving = Math.max(...data.bandwidth_savings.map((s) => s.savings_percent));
+  const savingsEntries = Object.entries(data.bandwidth_savings_pct);
+  const maxSaving = Math.max(...savingsEntries.map(([, v]) => v));
   const avgSaving =
-    data.bandwidth_savings.reduce((acc, s) => acc + s.savings_percent, 0) /
-    data.bandwidth_savings.length;
+    savingsEntries.reduce((acc, [, v]) => acc + v, 0) / savingsEntries.length;
   const totalCapacityReduction =
-    Object.values(data.capacities.no_buffer).reduce((a, b) => a + b, 0) -
-    Object.values(data.capacities.with_buffer).reduce((a, b) => a + b, 0);
+    Object.values(data.capacity.no_buffer_gbps).reduce((a, b) => a + b, 0) -
+    Object.values(data.capacity.with_buffer_gbps).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -44,9 +44,9 @@ export function CapacitySection({ data }: CapacitySectionProps) {
 
       {/* Savings Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {data.bandwidth_savings.map((saving) => (
+        {savingsEntries.map(([linkId, savings]) => (
           <div
-            key={saving.link_id}
+            key={linkId}
             className="section-card flex items-center justify-between"
           >
             <div className="flex items-center gap-3">
@@ -54,12 +54,12 @@ export function CapacitySection({ data }: CapacitySectionProps) {
                 <TrendingDown className="w-5 h-5 text-status-high" />
               </div>
               <div>
-                <div className="font-medium text-foreground">{saving.link_id}</div>
+                <div className="font-medium text-foreground">Link {linkId}</div>
                 <div className="text-sm text-muted-foreground">Bandwidth saved</div>
               </div>
             </div>
             <div className="status-badge-high text-lg font-mono font-semibold">
-              {saving.savings_percent.toFixed(1)}%
+              {savings.toFixed(1)}%
             </div>
           </div>
         ))}
