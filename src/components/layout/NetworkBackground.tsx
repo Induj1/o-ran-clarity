@@ -16,6 +16,13 @@ interface Packet {
   speed: number;
 }
 
+// Pastel colors for the light theme
+const COLORS = {
+  lightBlue: { r: 91, g: 155, b: 213 },      // #5B9BD5
+  lightPurple: { r: 155, g: 120, b: 185 },   // #9B78B9
+  lightBrown: { r: 180, g: 140, b: 100 },    // #B48C64
+};
+
 export function NetworkBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
@@ -87,7 +94,7 @@ export function NetworkBackground() {
         node.x = Math.max(0, Math.min(canvas.width, node.x));
         node.y = Math.max(0, Math.min(canvas.height, node.y));
 
-        // Draw connections to nearby nodes
+        // Draw connections to nearby nodes - light blue
         nodes.forEach((other, j) => {
           if (i >= j) return;
           const dx = other.x - node.x;
@@ -95,23 +102,23 @@ export function NetworkBackground() {
           const dist = Math.sqrt(dx * dx + dy * dy);
           
           if (dist < 200) {
-            const opacity = (1 - dist / 200) * 0.15;
+            const opacity = (1 - dist / 200) * 0.12;
             ctx.beginPath();
             ctx.moveTo(node.x, node.y);
             ctx.lineTo(other.x, other.y);
-            ctx.strokeStyle = `rgba(33, 150, 243, ${opacity})`;
+            ctx.strokeStyle = `rgba(${COLORS.lightBlue.r}, ${COLORS.lightBlue.g}, ${COLORS.lightBlue.b}, ${opacity})`;
             ctx.lineWidth = 1;
             ctx.stroke();
           }
         });
 
-        // Draw node with pulse
+        // Draw node with pulse - light purple
         const pulse = Math.sin(time * 0.002 + node.pulsePhase) * 0.5 + 0.5;
         const radius = node.radius + pulse * 1.5;
         
         // Glow
         const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, radius * 4);
-        gradient.addColorStop(0, `rgba(0, 229, 255, ${0.3 * pulse})`);
+        gradient.addColorStop(0, `rgba(${COLORS.lightPurple.r}, ${COLORS.lightPurple.g}, ${COLORS.lightPurple.b}, ${0.25 * pulse})`);
         gradient.addColorStop(1, "transparent");
         ctx.fillStyle = gradient;
         ctx.fillRect(node.x - radius * 4, node.y - radius * 4, radius * 8, radius * 8);
@@ -119,11 +126,11 @@ export function NetworkBackground() {
         // Core
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 229, 255, ${0.6 + pulse * 0.4})`;
+        ctx.fillStyle = `rgba(${COLORS.lightBlue.r}, ${COLORS.lightBlue.g}, ${COLORS.lightBlue.b}, ${0.5 + pulse * 0.3})`;
         ctx.fill();
       });
 
-      // Update and draw packets
+      // Update and draw packets - light brown/tan
       packetsRef.current = packets.filter((packet) => {
         packet.progress += packet.speed;
         
@@ -138,15 +145,15 @@ export function NetworkBackground() {
 
         // Draw packet with trail
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
-        gradient.addColorStop(0, "rgba(0, 229, 255, 0.9)");
-        gradient.addColorStop(0.5, "rgba(33, 150, 243, 0.5)");
+        gradient.addColorStop(0, `rgba(${COLORS.lightBrown.r}, ${COLORS.lightBrown.g}, ${COLORS.lightBrown.b}, 0.7)`);
+        gradient.addColorStop(0.5, `rgba(${COLORS.lightPurple.r}, ${COLORS.lightPurple.g}, ${COLORS.lightPurple.b}, 0.4)`);
         gradient.addColorStop(1, "transparent");
         ctx.fillStyle = gradient;
         ctx.fillRect(x - 8, y - 8, 16, 16);
 
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = "#00E5FF";
+        ctx.fillStyle = `rgb(${COLORS.lightBrown.r}, ${COLORS.lightBrown.g}, ${COLORS.lightBrown.b})`;
         ctx.fill();
 
         return true;
@@ -170,14 +177,14 @@ export function NetworkBackground() {
     <div className="fixed inset-0 pointer-events-none z-0">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 opacity-60"
+        className="absolute inset-0 opacity-50"
       />
       {/* Hexagonal overlay */}
       <div className="absolute inset-0 hex-grid" />
       {/* Circuit pattern overlay */}
-      <div className="absolute inset-0 circuit-pattern opacity-30" />
+      <div className="absolute inset-0 circuit-pattern opacity-20" />
       {/* Gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/60" />
     </div>
   );
 }

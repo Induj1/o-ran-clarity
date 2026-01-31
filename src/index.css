@@ -6,78 +6,78 @@
 
 @layer base {
   :root {
-    /* Futuristic Network Theme - Electric Blue, Deep Purple, Neon Cyan */
-    --background: 225 50% 8%;
-    --foreground: 200 100% 95%;
+    /* Soft Pastel Theme - Light Blue, Light Purple, Light Brown */
+    --background: 220 30% 96%;
+    --foreground: 220 20% 20%;
 
-    --card: 225 45% 12%;
-    --card-foreground: 200 100% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 20%;
 
-    --popover: 225 45% 10%;
-    --popover-foreground: 200 100% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 20%;
 
-    /* Electric Blue Primary */
-    --primary: 207 90% 54%;
-    --primary-foreground: 225 50% 8%;
+    /* Light Blue Primary */
+    --primary: 210 70% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Deep Purple Secondary */
-    --secondary: 262 60% 45%;
-    --secondary-foreground: 200 100% 95%;
+    /* Light Purple Secondary */
+    --secondary: 270 50% 65%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 225 30% 18%;
-    --muted-foreground: 210 40% 60%;
+    --muted: 220 20% 92%;
+    --muted-foreground: 220 15% 45%;
 
-    /* Neon Cyan Accent */
-    --accent: 180 100% 45%;
-    --accent-foreground: 225 50% 8%;
+    /* Light Brown/Tan Accent */
+    --accent: 30 45% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 85% 55%;
+    --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 225 40% 22%;
-    --input: 225 40% 22%;
-    --ring: 180 100% 45%;
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 210 70% 55%;
 
     --radius: 0.75rem;
 
-    /* Semantic status colors - neon style */
-    --status-high: 160 100% 50%;
-    --status-medium: 45 100% 55%;
-    --status-low: 0 100% 60%;
-    --status-high-bg: 160 100% 50% / 0.15;
-    --status-medium-bg: 45 100% 55% / 0.15;
-    --status-low-bg: 0 100% 60% / 0.15;
+    /* Semantic status colors - softer */
+    --status-high: 150 55% 45%;
+    --status-medium: 40 70% 50%;
+    --status-low: 0 65% 55%;
+    --status-high-bg: 150 55% 45% / 0.12;
+    --status-medium-bg: 40 70% 50% / 0.12;
+    --status-low-bg: 0 65% 55% / 0.12;
 
-    /* Chart colors - vibrant neon palette */
-    --chart-1: 207 90% 54%;
-    --chart-2: 180 100% 45%;
-    --chart-3: 262 80% 60%;
-    --chart-4: 160 100% 50%;
-    --chart-5: 320 85% 55%;
-    --chart-6: 45 100% 55%;
-    --chart-7: 290 80% 55%;
-    --chart-8: 0 85% 55%;
+    /* Chart colors - soft pastel palette */
+    --chart-1: 210 70% 55%;
+    --chart-2: 270 50% 65%;
+    --chart-3: 30 45% 55%;
+    --chart-4: 150 55% 45%;
+    --chart-5: 320 50% 60%;
+    --chart-6: 40 70% 50%;
+    --chart-7: 190 55% 50%;
+    --chart-8: 0 65% 55%;
 
-    /* Custom tokens - glowing network */
-    --link-line: 207 90% 54%;
-    --node-du: 262 80% 60%;
-    --node-link: 180 100% 45%;
-    --node-cell: 160 100% 50%;
+    /* Custom tokens - soft network */
+    --link-line: 210 70% 55%;
+    --node-du: 270 50% 65%;
+    --node-link: 210 70% 55%;
+    --node-cell: 30 45% 55%;
     
-    /* Glow effects */
-    --glow-blue: 0 0 30px hsl(207 90% 54% / 0.5);
-    --glow-cyan: 0 0 25px hsl(180 100% 45% / 0.5);
-    --glow-purple: 0 0 25px hsl(262 80% 60% / 0.5);
-    --glow-success: 0 0 20px hsl(160 100% 50% / 0.4);
+    /* Glow effects - softer */
+    --glow-blue: 0 0 25px hsl(210 70% 55% / 0.35);
+    --glow-cyan: 0 0 20px hsl(190 55% 50% / 0.35);
+    --glow-purple: 0 0 20px hsl(270 50% 65% / 0.35);
+    --glow-success: 0 0 15px hsl(150 55% 45% / 0.3);
     
-    --sidebar-background: 225 50% 8%;
-    --sidebar-foreground: 200 100% 95%;
-    --sidebar-primary: 207 90% 54%;
-    --sidebar-primary-foreground: 225 50% 8%;
-    --sidebar-accent: 262 60% 45%;
-    --sidebar-accent-foreground: 200 100% 95%;
-    --sidebar-border: 225 40% 22%;
-    --sidebar-ring: 180 100% 45%;
+    --sidebar-background: 220 30% 96%;
+    --sidebar-foreground: 220 20% 20%;
+    --sidebar-primary: 210 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 50% 65%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 20% 88%;
+    --sidebar-ring: 210 70% 55%;
   }
 }
 
@@ -90,10 +90,10 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
     background: 
-      radial-gradient(ellipse at 20% 20%, hsl(262 80% 60% / 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 80%, hsl(207 90% 54% / 0.1) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 50%, hsl(180 100% 45% / 0.05) 0%, transparent 70%),
-      linear-gradient(180deg, hsl(225 50% 6%) 0%, hsl(225 50% 10%) 100%);
+      radial-gradient(ellipse at 20% 20%, hsl(270 50% 65% / 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, hsl(210 70% 55% / 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, hsl(30 45% 55% / 0.05) 0%, transparent 70%),
+      linear-gradient(180deg, hsl(220 30% 96%) 0%, hsl(220 25% 94%) 100%);
     background-attachment: fixed;
   }
 
@@ -124,40 +124,40 @@
     position: absolute;
     inset: 0;
     background-image: 
-      radial-gradient(circle at 25% 25%, hsl(262 80% 60% / 0.1) 0%, transparent 25%),
-      radial-gradient(circle at 75% 75%, hsl(207 90% 54% / 0.08) 0%, transparent 25%);
+      radial-gradient(circle at 25% 25%, hsl(270 50% 65% / 0.08) 0%, transparent 25%),
+      radial-gradient(circle at 75% 75%, hsl(210 70% 55% / 0.06) 0%, transparent 25%);
     animation: networkPulse 8s ease-in-out infinite;
   }
 
-  /* Hexagonal grid pattern */
+  /* Hexagonal grid pattern - light blue */
   .hex-grid {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%232196F3' fill-opacity='0.06'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    opacity: 0.6;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%235B9BD5' fill-opacity='0.08'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
   }
 
-  /* Circuit board texture */
+  /* Circuit board texture - light */
   .circuit-pattern {
     background-image: 
-      linear-gradient(90deg, hsl(207 90% 54% / 0.03) 1px, transparent 1px),
-      linear-gradient(hsl(207 90% 54% / 0.03) 1px, transparent 1px);
+      linear-gradient(90deg, hsl(210 70% 55% / 0.04) 1px, transparent 1px),
+      linear-gradient(hsl(210 70% 55% / 0.04) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
   .section-card {
-    @apply bg-card/80 backdrop-blur-md border border-border rounded-xl p-6;
+    @apply bg-card/90 backdrop-blur-md border border-border rounded-xl p-6;
     box-shadow: 
-      0 0 1px hsl(207 90% 54% / 0.3),
-      0 4px 20px hsl(225 50% 5% / 0.5),
-      inset 0 1px 0 hsl(200 100% 95% / 0.05);
+      0 0 1px hsl(210 70% 55% / 0.2),
+      0 4px 20px hsl(220 30% 50% / 0.08),
+      inset 0 1px 0 hsl(0 0% 100% / 0.5);
   }
 
   .section-card-glow {
     @apply section-card;
     box-shadow: 
-      0 0 20px hsl(207 90% 54% / 0.15),
-      0 0 40px hsl(180 100% 45% / 0.1),
-      0 4px 20px hsl(225 50% 5% / 0.5),
-      inset 0 1px 0 hsl(200 100% 95% / 0.05);
+      0 0 20px hsl(210 70% 55% / 0.1),
+      0 0 40px hsl(270 50% 65% / 0.05),
+      0 4px 20px hsl(220 30% 50% / 0.08),
+      inset 0 1px 0 hsl(0 0% 100% / 0.5);
   }
 
   .section-title {
@@ -176,7 +176,7 @@
     @apply status-badge;
     background: hsl(var(--status-high-bg));
     color: hsl(var(--status-high));
-    box-shadow: 0 0 10px hsl(160 100% 50% / 0.3);
+    box-shadow: 0 0 8px hsl(150 55% 45% / 0.2);
   }
 
   .status-badge-medium {
