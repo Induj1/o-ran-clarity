@@ -1,6 +1,6 @@
 import { CongestionEvent } from "@/types/api";
 import { AlertTriangle, Clock } from "lucide-react";
-import { useMemo, useState, memo } from "react";
+import { useMemo, useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CongestionEventTimelineProps {
@@ -18,12 +18,11 @@ const LINK_COLORS = [
   "hsl(320, 50%, 55%)",
 ];
 
-const MAX_EVENTS_PER_LINK = 50; // Limit events displayed per link
+const MAX_EVENTS_PER_LINK = 50;
 
-export const CongestionEventTimeline = memo(function CongestionEventTimeline({ events }: CongestionEventTimelineProps) {
+export function CongestionEventTimeline({ events }: CongestionEventTimelineProps) {
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
 
-  // Get unique links and assign colors
   const linkConfig = useMemo(() => {
     const uniqueLinks = [...new Set(events.map((e) => e.link_id))].sort();
     const config: Record<string, { color: string; label: string }> = {};
@@ -36,7 +35,6 @@ export const CongestionEventTimeline = memo(function CongestionEventTimeline({ e
     return config;
   }, [events]);
 
-  // Group and downsample events by link
   const { eventsByLink, totalCounts } = useMemo(() => {
     const grouped: Record<string, (CongestionEvent & { displayOffset: number })[]> = {};
     const counts: Record<string, number> = {};
@@ -46,33 +44,26 @@ export const CongestionEventTimeline = memo(function CongestionEventTimeline({ e
       counts[linkId] = 0;
     });
 
-    // First, group all events
     const allGrouped: Record<string, CongestionEvent[]> = {};
     events.forEach((event) => {
       if (!allGrouped[event.link_id]) allGrouped[event.link_id] = [];
       allGrouped[event.link_id].push(event);
     });
 
-    // Downsample and process
     Object.entries(allGrouped).forEach(([linkId, linkEvents]) => {
       counts[linkId] = linkEvents.length;
-      
-      // Sort by timestamp
       linkEvents.sort((a, b) => a.timestamp - b.timestamp);
 
-      // Downsample if too many
       let sampled = linkEvents;
       if (linkEvents.length > MAX_EVENTS_PER_LINK) {
         const step = linkEvents.length / MAX_EVENTS_PER_LINK;
         sampled = [];
         for (let i = 0; i < MAX_EVENTS_PER_LINK; i++) {
-          const idx = Math.floor(i * step);
-          sampled.push(linkEvents[idx]);
+          sampled.push(linkEvents[Math.floor(i * step)]);
         }
       }
 
-      // Calculate offsets for overlapping events
-      const processed = sampled.map((e, i) => ({ ...e, displayOffset: 0 }));
+      const processed = sampled.map((e) => ({ ...e, displayOffset: 0 }));
       for (let i = 1; i < processed.length; i++) {
         const timeDiff = processed[i].timestamp - processed[i - 1].timestamp;
         if (timeDiff < 0.5) {
@@ -120,20 +111,17 @@ export const CongestionEventTimeline = memo(function CongestionEventTimeline({ e
   return (
     <TooltipProvider delayDuration={100}>
       <div className="section-card space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" />
             <span className="font-medium">Event Timeline</span>
           </div>
           <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
-            {timeRange.min.toFixed(1)}s → {timeRange.max.toFixed(1)}s ({events.length} total events)
+            {timeRange.min.toFixed(1)}s → {timeRange.max.toFixed(1)}s ({events.length} total)
           </span>
         </div>
 
-        {/* Timeline */}
         <div className="space-y-1">
-          {/* Time axis */}
           <div className="flex items-center h-8 border-b border-border/50">
             <div className="w-20 flex-shrink-0" />
             <div className="flex-1 relative">
@@ -149,7 +137,6 @@ export const CongestionEventTimeline = memo(function CongestionEventTimeline({ e
             </div>
           </div>
 
-          {/* Link lanes */}
           {Object.entries(linkConfig).map(([linkId, config]) => {
             const linkEvents = eventsByLink[linkId] || [];
             const totalCount = totalCounts[linkId] || 0;
@@ -247,7 +234,6 @@ export const CongestionEventTimeline = memo(function CongestionEventTimeline({ e
           })}
         </div>
 
-        {/* Summary */}
         <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border/50">
           {Object.entries(linkConfig).map(([linkId, config]) => (
             <div
@@ -270,4 +256,4 @@ export const CongestionEventTimeline = memo(function CongestionEventTimeline({ e
       </div>
     </TooltipProvider>
   );
-});
+}
