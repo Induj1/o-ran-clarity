@@ -7,6 +7,7 @@ import { TopologySection } from "@/components/topology/TopologySection";
 import { CapacitySection } from "@/components/capacity/CapacitySection";
 import { CongestionSection } from "@/components/congestion/CongestionSection";
 import { SummarySection } from "@/components/summary/SummarySection";
+import { ReportSection } from "@/components/report/ReportSection";
 import { TrafficPatternChart } from "@/components/analysis/TrafficPatternChart";
 import { mockAnalysisData } from "@/data/mockData";
 import { FlaskConical, Zap } from "lucide-react";
@@ -31,6 +32,8 @@ const Index = () => {
         );
       case "summary":
         return <SummarySection data={data} />;
+      case "report":
+        return <ReportSection data={data} />;
       default:
         return <TopologySection data={data} />;
     }
