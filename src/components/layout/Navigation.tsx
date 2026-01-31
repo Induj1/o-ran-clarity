@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { GitBranch, BarChart3, AlertTriangle, Brain, Hexagon } from "lucide-react";
+import { GitBranch, BarChart3, AlertTriangle, Brain, Hexagon, FileText } from "lucide-react";
 
 interface NavigationProps {
   activeSection: string;
@@ -11,6 +11,7 @@ const sections = [
   { id: "capacity", label: "Capacity", icon: BarChart3 },
   { id: "congestion", label: "Congestion", icon: AlertTriangle },
   { id: "summary", label: "AI Summary", icon: Brain },
+  { id: "report", label: "Report", icon: FileText },
 ];
 
 export function Navigation({ activeSection, onSectionChange }: NavigationProps) {
