@@ -1,37 +1,53 @@
 // API Response Types for O-RAN Fronthaul Optimization
+// Aligned with actual backend API response format
 
-// New format from actual API
-export interface RootCauseContributor {
-  cell_id: number;
-  pct: number;
+// Contribution in root cause attribution
+export interface Contribution {
+  cell: number;
+  percentage: number;
 }
 
+// Root cause event
 export interface RootCauseEvent {
-  time_sec: number;
-  contributors: RootCauseContributor[];
+  time: number;
+  contributions: Contribution[];
 }
 
+// Outlier info per link
+export interface OutlierInfo {
+  cell_id: number;
+  max_corr: number;
+}
+
+// Traffic pattern per link
+export interface TrafficPattern {
+  time_seconds: number[];
+  data_rate_gbps: number[];
+}
+
+// Main API response interface
 export interface AnalysisResponse {
   // Topology: link_id -> array of cell_ids
   topology: Record<string, number[]>;
-  // Confidence per link
-  topology_confidence: Record<string, number>;
-  // Outliers (can be empty array or object)
-  outliers: Array<{ cell_id: number; link_id: string; reason?: string }> | Record<string, never>;
-  // Capacity data
-  capacity: {
-    no_buffer_gbps: Record<string, number>;
-    with_buffer_gbps: Record<string, number>;
+  // 2D correlation matrix (flat array of arrays)
+  correlation_matrix: number[][];
+  // Array of cell IDs in correlation matrix order
+  cells: number[];
+  // Confidence per link (renamed from topology_confidence)
+  confidence: Record<string, number>;
+  // Outliers: link_id -> outlier info object
+  outliers: Record<string, OutlierInfo>;
+  // Capacity data (renamed from capacity)
+  capacities: {
+    no_buffer: Record<string, number>;
+    with_buffer: Record<string, number>;
   };
-  // Bandwidth savings percentage per link
-  bandwidth_savings_pct: Record<string, number>;
+  // Bandwidth savings percentage per link (renamed from bandwidth_savings_pct)
+  bandwidth_savings: Record<string, number>;
+  // Traffic patterns per link
+  traffic_patterns: Record<string, TrafficPattern>;
   // Root cause attribution: link_id -> array of events
   root_cause_attribution: Record<string, RootCauseEvent[]>;
-  // Optional: correlation matrix
-  correlation_matrix?: {
-    cells: number[];
-    matrix: number[][];
-  };
 }
 
 // Helper types for transformed data used in components
@@ -48,7 +64,7 @@ export interface TopologyConfidence {
 export interface Outlier {
   cell_id: string;
   link_id: string;
-  reason?: string;
+  max_corr?: number;
 }
 
 export interface BandwidthSaving {
@@ -76,25 +92,22 @@ export function transformTopology(data: AnalysisResponse): TopologyLink[] {
 }
 
 export function transformConfidence(data: AnalysisResponse): TopologyConfidence[] {
-  return Object.entries(data.topology_confidence).map(([linkId, confidence]) => ({
+  return Object.entries(data.confidence).map(([linkId, confidence]) => ({
     link_id: `Link ${linkId}`,
     confidence,
   }));
 }
 
 export function transformOutliers(data: AnalysisResponse): Outlier[] {
-  if (Array.isArray(data.outliers)) {
-    return data.outliers.map((o) => ({
-      cell_id: `Cell ${o.cell_id}`,
-      link_id: `Link ${o.link_id}`,
-      reason: o.reason,
-    }));
-  }
-  return [];
+  return Object.entries(data.outliers).map(([linkId, info]) => ({
+    cell_id: `Cell ${info.cell_id}`,
+    link_id: `Link ${linkId}`,
+    max_corr: info.max_corr,
+  }));
 }
 
 export function transformBandwidthSavings(data: AnalysisResponse): BandwidthSaving[] {
-  return Object.entries(data.bandwidth_savings_pct).map(([linkId, savings]) => ({
+  return Object.entries(data.bandwidth_savings).map(([linkId, savings]) => ({
     link_id: `Link ${linkId}`,
     savings_percent: savings,
   }));
@@ -106,11 +119,11 @@ export function transformCongestionEvents(data: AnalysisResponse): CongestionEve
   Object.entries(data.root_cause_attribution).forEach(([linkId, linkEvents]) => {
     linkEvents.forEach((event) => {
       events.push({
-        timestamp: event.time_sec,
+        timestamp: event.time,
         link_id: `Link ${linkId}`,
-        contributors: event.contributors.map((c) => ({
-          cell_id: `Cell ${c.cell_id}`,
-          contribution_percent: c.pct,
+        contributors: event.contributions.map((c) => ({
+          cell_id: `Cell ${c.cell}`,
+          contribution_percent: c.percentage,
         })),
       });
     });

@@ -1,5 +1,5 @@
 import { AnalysisResponse } from "@/types/api";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Radio, Zap, Activity } from "lucide-react";
 
 interface CellFlowVisualizationProps {
@@ -31,12 +31,12 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
 
     Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
       events.forEach((event, eventIdx) => {
-        event.contributors.forEach((contributor, contribIdx) => {
+        event.contributions.forEach((contribution, contribIdx) => {
           result.push({
             id: `p-${particleId++}`,
-            cellId: contributor.cell_id,
+            cellId: contribution.cell,
             linkId,
-            pct: contributor.pct,
+            pct: contribution.percentage,
             delay: eventIdx * 0.8 + contribIdx * 0.2,
           });
         });
@@ -51,7 +51,7 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
     return Object.entries(data.topology).map(([linkId, cells]) => ({
       linkId,
       cells,
-      confidence: data.topology_confidence[linkId] || 0,
+      confidence: data.confidence[linkId] || 0,
     }));
   }, [data]);
 
@@ -218,7 +218,7 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
         {linkCells.map((link) => {
           const colors = LINK_COLORS[link.linkId] || LINK_COLORS["1"];
           const events = data.root_cause_attribution[link.linkId] || [];
-          const totalContributors = events.reduce((acc, e) => acc + e.contributors.length, 0);
+          const totalContributors = events.reduce((acc, e) => acc + e.contributions.length, 0);
 
           return (
             <div

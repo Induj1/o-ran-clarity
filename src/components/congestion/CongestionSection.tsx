@@ -19,13 +19,13 @@ export function CongestionSection({ data }: CongestionSectionProps) {
     Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
       totalEvents += events.length;
       events.forEach((event) => {
-        event.contributors.forEach((c) => {
-          const cellKey = `Cell ${c.cell_id}`;
+        event.contributions.forEach((c) => {
+          const cellKey = `Cell ${c.cell}`;
           if (!cellContributions[cellKey]) {
             cellContributions[cellKey] = [];
           }
-          cellContributions[cellKey].push(c.pct);
-          if (c.pct > 20) {
+          cellContributions[cellKey].push(c.percentage);
+          if (c.percentage > 20) {
             highContributors++;
           }
         });
@@ -56,11 +56,11 @@ export function CongestionSection({ data }: CongestionSectionProps) {
     Object.entries(data.root_cause_attribution).forEach(([linkId, linkEvents]) => {
       linkEvents.forEach((event) => {
         events.push({
-          timestamp: event.time_sec,
+          timestamp: event.time,
           link_id: `Link ${linkId}`,
-          contributors: event.contributors.map((c) => ({
-            cell_id: `Cell ${c.cell_id}`,
-            contribution_percent: c.pct,
+          contributors: event.contributions.map((c) => ({
+            cell_id: `Cell ${c.cell}`,
+            contribution_percent: c.percentage,
           })),
         });
       });

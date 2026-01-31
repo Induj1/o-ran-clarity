@@ -12,10 +12,10 @@ export function TopologySection({ data }: TopologySectionProps) {
     (acc, cells) => acc + cells.length,
     0
   );
-  const confidenceValues = Object.values(data.topology_confidence);
+  const confidenceValues = Object.values(data.confidence);
   const avgConfidence =
     confidenceValues.reduce((acc, c) => acc + c, 0) / confidenceValues.length;
-  const outliersList = Array.isArray(data.outliers) ? data.outliers : [];
+  const outlierCount = Object.keys(data.outliers).length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -36,7 +36,7 @@ export function TopologySection({ data }: TopologySectionProps) {
         <div className="section-card">
           <div className="data-label">Outliers</div>
           <div className="data-value text-status-low">
-            {outliersList.length}
+            {outlierCount}
           </div>
         </div>
       </div>
