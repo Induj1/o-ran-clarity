@@ -71,8 +71,8 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
         // Spread events across the 0-10s range with offsets per event
         const baseTime = (eventIdx + 1) * 1.5 + parseInt(linkId) * 0.5;
         
-        event.contributors.forEach((contrib, contribIdx) => {
-          const cellKey = `cell_${contrib.cell_id}`;
+        event.contributions.forEach((contrib, contribIdx) => {
+          const cellKey = `cell_${contrib.cell}`;
           
           // Each contributor gets a slightly different spike time
           const spikeTime = baseTime + contribIdx * 0.6;
@@ -81,7 +81,7 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
           for (let offset = -0.8; offset <= 0.8; offset += 0.2) {
             const t = Math.round((spikeTime + offset) * 10) / 10;
             if (t >= 0 && t <= 10 && timePoints[t]) {
-              const spikeHeight = (contrib.pct / 100) * (0.5 + Math.random() * 0.2);
+              const spikeHeight = (contrib.percentage / 100) * (0.5 + Math.random() * 0.2);
               const decay = Math.exp(-Math.pow(offset, 2) * 3); // Gaussian decay
               const currentVal = timePoints[t][cellKey] || 0;
               timePoints[t][cellKey] = Math.min(1, currentVal + spikeHeight * decay);
@@ -149,7 +149,7 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
           .filter((linkId) => selectedLink === null || selectedLink === linkId)
           .map((linkId) => {
             const cells = data.topology[linkId];
-            const confidence = data.topology_confidence[linkId];
+            const confidence = data.confidence[linkId];
 
             return (
               <div

@@ -86,7 +86,7 @@ const Simulator = () => {
       const totalChange = relevantMods.reduce((sum, m) => sum + m.changePercent, 0);
       
       // Simulate capacity impact
-      const baseCapacity = data.capacity.with_buffer_gbps[linkId] || 0;
+      const baseCapacity = data.capacities.with_buffer[linkId] || 0;
       const capacityChange = (totalChange / 100) * baseCapacity * 0.3;
       
       // Determine congestion risk
@@ -356,7 +356,7 @@ const Simulator = () => {
                       <div className="mt-3">
                         <div className="flex justify-between text-xs text-muted-foreground mb-1">
                           <span>Current capacity</span>
-                          <span>{data.capacity.with_buffer_gbps[linkId]?.toFixed(1)} Gbps</span>
+                          <span>{data.capacities.with_buffer[linkId]?.toFixed(1)} Gbps</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div
@@ -368,7 +368,7 @@ const Simulator = () => {
                                 : "bg-[hsl(var(--status-high))]"
                             }`}
                             style={{
-                              width: `${Math.min(100, 70 + (impact.capacityChange / (data.capacity.with_buffer_gbps[linkId] || 1)) * 100)}%`,
+                              width: `${Math.min(100, 70 + (impact.capacityChange / (data.capacities.with_buffer[linkId] || 1)) * 100)}%`,
                             }}
                           />
                         </div>
@@ -379,7 +379,7 @@ const Simulator = () => {
                               impact.capacityChange > 0 ? "text-[hsl(var(--status-low))]" : "text-[hsl(var(--status-high))]"
                             }
                           >
-                            {((data.capacity.with_buffer_gbps[linkId] || 0) + impact.capacityChange).toFixed(1)} Gbps
+                            {((data.capacities.with_buffer[linkId] || 0) + impact.capacityChange).toFixed(1)} Gbps
                           </span>
                         </div>
                       </div>

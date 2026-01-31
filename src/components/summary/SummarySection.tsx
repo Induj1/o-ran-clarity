@@ -24,7 +24,7 @@ export function SummarySection({ data }: SummarySectionProps) {
       category: "topology",
     });
 
-    const confidenceEntries = Object.entries(data.topology_confidence);
+    const confidenceEntries = Object.entries(data.confidence);
     const highestConfLink = confidenceEntries.reduce((prev, curr) =>
       curr[1] > prev[1] ? curr : prev
     );
@@ -34,9 +34,9 @@ export function SummarySection({ data }: SummarySectionProps) {
       category: "topology",
     });
 
-    const outliersList = Array.isArray(data.outliers) ? data.outliers : [];
-    if (outliersList.length > 0) {
-      const outlierCells = outliersList.map((o) => `Cell ${o.cell_id}`).join(", ");
+    const outlierEntries = Object.entries(data.outliers);
+    if (outlierEntries.length > 0) {
+      const outlierCells = outlierEntries.map(([, info]) => `Cell ${info.cell_id}`).join(", ");
       items.push({
         icon: AlertTriangle,
         text: `Outlier detected: ${outlierCells} shows weaker correlation with assigned link traffic patterns.`,
@@ -45,7 +45,7 @@ export function SummarySection({ data }: SummarySectionProps) {
     }
 
     // Capacity insights
-    const savingsEntries = Object.entries(data.bandwidth_savings_pct);
+    const savingsEntries = Object.entries(data.bandwidth_savings);
     const maxSaving = savingsEntries.reduce((prev, curr) =>
       curr[1] > prev[1] ? curr : prev
     );
@@ -56,8 +56,8 @@ export function SummarySection({ data }: SummarySectionProps) {
     });
 
     const totalReduction =
-      Object.values(data.capacity.no_buffer_gbps).reduce((a, b) => a + b, 0) -
-      Object.values(data.capacity.with_buffer_gbps).reduce((a, b) => a + b, 0);
+      Object.values(data.capacities.no_buffer).reduce((a, b) => a + b, 0) -
+      Object.values(data.capacities.with_buffer).reduce((a, b) => a + b, 0);
     items.push({
       icon: TrendingDown,
       text: `Total network capacity can be reduced by ${totalReduction.toFixed(1)} Gbps while maintaining ≤1% packet loss.`,
@@ -76,8 +76,8 @@ export function SummarySection({ data }: SummarySectionProps) {
     // Find top contributors for that link
     const topContributors: Record<string, number> = {};
     data.root_cause_attribution[mostCongestedLink[0]]?.forEach((event) => {
-      event.contributors.forEach((c) => {
-        topContributors[`Cell ${c.cell_id}`] = (topContributors[`Cell ${c.cell_id}`] || 0) + c.pct;
+      event.contributions.forEach((c) => {
+        topContributors[`Cell ${c.cell}`] = (topContributors[`Cell ${c.cell}`] || 0) + c.percentage;
       });
     });
 

@@ -19,16 +19,9 @@ function getConfidenceLevel(confidence: number): "high" | "medium" | "low" {
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
-  const level = getConfidenceLevel(confidence);
-  
   return (
     <span
-      className={cn(
-        "text-xs font-mono px-1.5 py-0.5 rounded",
-        level === "high" && "bg-status-high/20 text-status-high",
-        level === "medium" && "bg-status-medium/20 text-status-medium",
-        level === "low" && "bg-status-low/20 text-status-low"
-      )}
+      className="text-xs font-mono px-1.5 py-0.5 rounded bg-status-medium/20 text-status-medium"
     >
       {confidence.toFixed(0)}%
     </span>
@@ -76,11 +69,12 @@ function CellNode({
 }
 
 export function TopologyGraph({ data }: TopologyGraphProps) {
-  // Build outlier map
+  // Build outlier map from new format (object keyed by link_id)
   const outlierMap = useMemo(() => {
     const map = new Map<string, { reason?: string }>();
-    const outliersList = Array.isArray(data.outliers) ? data.outliers : [];
-    outliersList.forEach((o) => map.set(`Cell ${o.cell_id}`, { reason: o.reason }));
+    Object.entries(data.outliers).forEach(([linkId, info]) => {
+      map.set(`Cell ${info.cell_id}`, { reason: `Max correlation: ${info.max_corr.toFixed(2)}` });
+    });
     return map;
   }, [data.outliers]);
 
@@ -89,9 +83,9 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
     return Object.entries(data.topology).map(([linkId, cellIds]) => ({
       link_id: `Link ${linkId}`,
       cells: cellIds.map((id) => `Cell ${id}`),
-      confidence: data.topology_confidence[linkId] ?? 0,
+      confidence: data.confidence[linkId] ?? 0,
     }));
-  }, [data.topology, data.topology_confidence]);
+  }, [data.topology, data.confidence]);
 
   return (
     <div className="relative">
@@ -135,7 +129,6 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12 relative" style={{ zIndex: 2 }}>
           {links.map((link) => {
             const confidenceValue = link.confidence;
-            const level = getConfidenceLevel(confidenceValue);
 
             return (
               <div

@@ -7,13 +7,13 @@ interface CapacitySectionProps {
 }
 
 export function CapacitySection({ data }: CapacitySectionProps) {
-  const savingsEntries = Object.entries(data.bandwidth_savings_pct);
+  const savingsEntries = Object.entries(data.bandwidth_savings);
   const maxSaving = Math.max(...savingsEntries.map(([, v]) => v));
   const avgSaving =
     savingsEntries.reduce((acc, [, v]) => acc + v, 0) / savingsEntries.length;
   const totalCapacityReduction =
-    Object.values(data.capacity.no_buffer_gbps).reduce((a, b) => a + b, 0) -
-    Object.values(data.capacity.with_buffer_gbps).reduce((a, b) => a + b, 0);
+    Object.values(data.capacities.no_buffer).reduce((a, b) => a + b, 0) -
+    Object.values(data.capacities.with_buffer).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// System prompt with network analysis context
+// System prompt with network analysis context (aligned with actual API format)
 const SYSTEM_PROMPT = `You are an AI assistant for the O-RAN Fronthaul Optimizer, a network analysis dashboard for telecom operators.
 
 You have access to the following network data context:
@@ -15,15 +15,15 @@ TOPOLOGY:
 - Link 2: Cells 1, 3, 5, 9, 11, 12, 14, 17, 20, 21, 22 (61% confidence)
 - Link 3: Cells 2, 6, 7, 8, 10, 13, 15, 16, 18, 19, 23, 24 (87% confidence)
 
-CAPACITY:
+CAPACITIES:
 - Link 1: 6.77 Gbps (no buffer) / 5.27 Gbps (with buffer)
 - Link 2: 31.05 Gbps (no buffer) / 24.16 Gbps (with buffer)
 - Link 3: 56.57 Gbps (no buffer) / 44.00 Gbps (with buffer)
 
 BANDWIDTH SAVINGS: All links show 22% potential savings through statistical multiplexing.
 
-CONGESTION EVENTS:
-- Link 1: 3 events, primarily caused by Cell 4 (100% contribution)
+ROOT CAUSE ATTRIBUTION (congestion events):
+- Link 1: 3 events at time 1.05s, Cell 4 contributing 100%
 - Link 2: 5 events, top contributors are Cells 1, 5, 9, 12, 14, 20
 - Link 3: 5 events, top contributors are Cells 2, 8, 10, 15, 19, 23
 

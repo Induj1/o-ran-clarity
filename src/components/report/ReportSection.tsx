@@ -49,11 +49,11 @@ export function ReportSection({ data }: ReportSectionProps) {
   const totalCells = Object.values(data.topology).flat().length;
   const totalLinks = Object.keys(data.topology).length;
   const avgConfidence = Math.round(
-    Object.values(data.topology_confidence).reduce((a, b) => a + b, 0) / totalLinks
+    Object.values(data.confidence).reduce((a, b) => a + b, 0) / totalLinks
   );
   const totalEvents = Object.values(data.root_cause_attribution).flat().length;
   const avgSavings = Math.round(
-    Object.values(data.bandwidth_savings_pct).reduce((a, b) => a + b, 0) / totalLinks
+    Object.values(data.bandwidth_savings).reduce((a, b) => a + b, 0) / totalLinks
   );
 
   // Generate recommendations based on data
@@ -61,7 +61,7 @@ export function ReportSection({ data }: ReportSectionProps) {
     {
       priority: "high",
       title: "Optimize Link 1 Capacity",
-      description: `Link 1 shows ${data.topology_confidence["1"]}% confidence with potential ${data.bandwidth_savings_pct["1"]}% bandwidth savings through statistical multiplexing.`,
+      description: `Link 1 shows ${data.confidence["1"]}% confidence with potential ${data.bandwidth_savings["1"]}% bandwidth savings through statistical multiplexing.`,
     },
     {
       priority: "medium", 
@@ -71,7 +71,7 @@ export function ReportSection({ data }: ReportSectionProps) {
     {
       priority: "medium",
       title: "Review Link 3 Topology",
-      description: `Link 3 has the highest confidence (${data.topology_confidence["3"]}%) and most cells (${data.topology["3"].length}). Validate topology accuracy.`,
+      description: `Link 3 has the highest confidence (${data.confidence["3"]}%) and most cells (${data.topology["3"].length}). Validate topology accuracy.`,
     },
     {
       priority: "low",
@@ -107,18 +107,18 @@ EXECUTIVE SUMMARY
 TOPOLOGY ANALYSIS
 -----------------
 ${Object.entries(data.topology).map(([linkId, cells]) => 
-  `Link ${linkId}: ${cells.length} cells (${cells.join(", ")}) - ${data.topology_confidence[linkId]}% confidence`
+  `Link ${linkId}: ${cells.length} cells (${cells.join(", ")}) - ${data.confidence[linkId]}% confidence`
 ).join("\n")}
 
 CAPACITY ANALYSIS
 -----------------
-${Object.entries(data.capacity.no_buffer_gbps).map(([linkId, capacity]) => 
-  `Link ${linkId}: ${capacity.toFixed(2)} Gbps (no buffer) / ${data.capacity.with_buffer_gbps[linkId].toFixed(2)} Gbps (with buffer)`
+${Object.entries(data.capacities.no_buffer).map(([linkId, capacity]) => 
+  `Link ${linkId}: ${capacity.toFixed(2)} Gbps (no buffer) / ${data.capacities.with_buffer[linkId].toFixed(2)} Gbps (with buffer)`
 ).join("\n")}
 
 BANDWIDTH SAVINGS
 -----------------
-${Object.entries(data.bandwidth_savings_pct).map(([linkId, savings]) => 
+${Object.entries(data.bandwidth_savings).map(([linkId, savings]) => 
   `Link ${linkId}: ${savings}% potential savings`
 ).join("\n")}
 
@@ -274,7 +274,7 @@ View full report: ${window.location.href}
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-sm font-mono px-2 py-0.5 bg-primary/10 text-primary rounded">
-                    {data.topology_confidence[linkId]}% conf
+                    {data.confidence[linkId]}% conf
                   </div>
                 </div>
               </div>
@@ -289,12 +289,12 @@ View full report: ${window.location.href}
             <h3 className="font-semibold">Capacity Analysis</h3>
           </div>
           <div className="space-y-3">
-            {Object.entries(data.capacity.no_buffer_gbps).map(([linkId, capacity]) => (
+            {Object.entries(data.capacities.no_buffer).map(([linkId, capacity]) => (
               <div key={linkId} className="p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium">Link {linkId}</span>
                   <span className="text-xs px-2 py-0.5 bg-status-high/10 text-status-high rounded">
-                    {data.bandwidth_savings_pct[linkId]}% savings
+                    {data.bandwidth_savings[linkId]}% savings
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -304,7 +304,7 @@ View full report: ${window.location.href}
                   </div>
                   <div>
                     <span className="text-muted-foreground">With buffer:</span>
-                    <span className="ml-2 font-mono">{data.capacity.with_buffer_gbps[linkId].toFixed(2)} Gbps</span>
+                    <span className="ml-2 font-mono">{data.capacities.with_buffer[linkId].toFixed(2)} Gbps</span>
                   </div>
                 </div>
               </div>
@@ -321,9 +321,9 @@ View full report: ${window.location.href}
           <div className="space-y-3">
             {Object.entries(data.root_cause_attribution).map(([linkId, events]) => {
               const topContributors = events
-                .flatMap((e) => e.contributors)
+                .flatMap((e) => e.contributions)
                 .reduce((acc, c) => {
-                  acc[c.cell_id] = (acc[c.cell_id] || 0) + c.pct;
+                  acc[c.cell] = (acc[c.cell] || 0) + c.percentage;
                   return acc;
                 }, {} as Record<number, number>);
               
