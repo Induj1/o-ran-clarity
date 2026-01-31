@@ -1,98 +1,129 @@
 import { CongestionEvent } from "@/types/api";
-import { cn } from "@/lib/utils";
-import { Clock, AlertCircle } from "lucide-react";
+import { useMemo } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface CongestionTimelineProps {
   events: CongestionEvent[];
 }
 
-function ContributorBar({ 
-  cellId, 
-  percent, 
-  isTop 
-}: { 
-  cellId: string; 
-  percent: number;
-  isTop: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-16 text-sm text-muted-foreground font-mono">{cellId}</div>
-      <div className="flex-1 h-6 bg-secondary rounded-full overflow-hidden">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all flex items-center justify-end pr-2",
-            isTop ? "bg-primary" : "bg-primary/40"
-          )}
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        >
-          <span className={cn(
-            "text-xs font-mono font-medium",
-            isTop ? "text-primary-foreground" : "text-foreground"
-          )}>
-            {percent.toFixed(1)}%
-          </span>
-        </div>
-      </div>
-      {isTop && (
-        <AlertCircle className="w-4 h-4 text-status-medium shrink-0" />
-      )}
-    </div>
-  );
-}
+// Generate distinct colors for cells
+const CELL_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--status-medium))",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(142, 76%, 36%)",
+  "hsl(262, 83%, 58%)",
+  "hsl(330, 81%, 60%)",
+];
 
 export function CongestionTimeline({ events }: CongestionTimelineProps) {
-  // Group events by link
-  const eventsByLink = events.reduce((acc, event) => {
-    if (!acc[event.link_id]) {
-      acc[event.link_id] = [];
-    }
-    acc[event.link_id].push(event);
-    return acc;
-  }, {} as Record<string, CongestionEvent[]>);
+  // Transform events into chart data format
+  const { chartData, allCells, cellColors } = useMemo(() => {
+    // Get all unique cells across all events
+    const cellSet = new Set<string>();
+    events.forEach((event) => {
+      event.contributors.forEach((c) => cellSet.add(c.cell_id));
+    });
+    const allCells = Array.from(cellSet).sort();
+
+    // Assign colors to cells
+    const cellColors: Record<string, string> = {};
+    allCells.forEach((cell, idx) => {
+      cellColors[cell] = CELL_COLORS[idx % CELL_COLORS.length];
+    });
+
+    // Build chart data points
+    const chartData = events
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((event) => {
+        const point: Record<string, number | string> = {
+          timestamp: event.timestamp,
+          time: `t=${event.timestamp.toFixed(2)}s`,
+          link: event.link_id,
+        };
+        // Initialize all cells to 0
+        allCells.forEach((cell) => {
+          point[cell] = 0;
+        });
+        // Set actual contribution values
+        event.contributors.forEach((c) => {
+          point[c.cell_id] = c.contribution_percent;
+        });
+        return point;
+      });
+
+    return { chartData, allCells, cellColors };
+  }, [events]);
 
   return (
-    <div className="space-y-6">
-      {Object.entries(eventsByLink).map(([linkId, linkEvents]) => (
-        <div key={linkId} className="section-card">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-md bg-primary/20 flex items-center justify-center">
-              <AlertCircle className="w-4 h-4 text-primary" />
-            </div>
-            <h3 className="font-semibold text-foreground">{linkId}</h3>
-            <span className="text-sm text-muted-foreground">
-              ({linkEvents.length} congestion events)
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {linkEvents.map((event, idx) => (
-              <div
-                key={`${event.link_id}-${event.timestamp}`}
-                className="pl-4 border-l-2 border-border"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-mono text-primary">
-                    t = {event.timestamp.toFixed(2)}s
-                  </span>
-                </div>
-                
-                <div className="space-y-2">
-                  {event.contributors.map((contributor, cIdx) => (
-                    <ContributorBar
-                      key={contributor.cell_id}
-                      cellId={contributor.cell_id}
-                      percent={contributor.contribution_percent}
-                      isTop={contributor.contribution_percent > 20}
-                    />
-                  ))}
-                </div>
-              </div>
+    <div className="section-card">
+      <div className="h-[400px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis
+              dataKey="time"
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) => `${value}%`}
+              domain={[0, 40]}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                color: "hsl(var(--foreground))",
+              }}
+              labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+              formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+            />
+            <Legend
+              wrapperStyle={{ paddingTop: "20px" }}
+              formatter={(value) => (
+                <span style={{ color: "hsl(var(--foreground))", fontSize: "12px" }}>
+                  {value}
+                </span>
+              )}
+            />
+            {allCells.map((cell) => (
+              <Line
+                key={cell}
+                type="monotone"
+                dataKey={cell}
+                stroke={cellColors[cell]}
+                strokeWidth={2}
+                dot={{ r: 4, fill: cellColors[cell] }}
+                activeDot={{ r: 6, strokeWidth: 2 }}
+                animationDuration={1500}
+                animationBegin={0}
+              />
             ))}
-          </div>
-        </div>
-      ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
