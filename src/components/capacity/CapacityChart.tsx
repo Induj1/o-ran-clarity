@@ -18,15 +18,15 @@ interface CapacityChartProps {
 
 export function CapacityChart({ data }: CapacityChartProps) {
   const chartData = useMemo(() => {
-    const linkIds = Object.keys(data.capacities.no_buffer);
+    const linkIds = Object.keys(data.capacity.no_buffer_gbps);
     
     return linkIds.map((linkId) => {
-      const saving = data.bandwidth_savings.find((s) => s.link_id === linkId);
+      const savings = data.bandwidth_savings_pct[linkId] ?? 0;
       return {
-        link: linkId,
-        noBuffer: data.capacities.no_buffer[linkId],
-        withBuffer: data.capacities.with_buffer[linkId],
-        savings: saving?.savings_percent ?? 0,
+        link: `Link ${linkId}`,
+        noBuffer: data.capacity.no_buffer_gbps[linkId],
+        withBuffer: data.capacity.with_buffer_gbps[linkId],
+        savings,
       };
     });
   }, [data]);

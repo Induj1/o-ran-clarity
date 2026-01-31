@@ -7,13 +7,15 @@ interface TopologySectionProps {
 }
 
 export function TopologySection({ data }: TopologySectionProps) {
-  const totalCells = data.topology.links.reduce(
-    (acc, link) => acc + link.cells.length,
+  const linkIds = Object.keys(data.topology);
+  const totalCells = Object.values(data.topology).reduce(
+    (acc, cells) => acc + cells.length,
     0
   );
+  const confidenceValues = Object.values(data.topology_confidence);
   const avgConfidence =
-    data.confidence.reduce((acc, c) => acc + c.confidence, 0) /
-    data.confidence.length;
+    confidenceValues.reduce((acc, c) => acc + c, 0) / confidenceValues.length;
+  const outliersList = Array.isArray(data.outliers) ? data.outliers : [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -21,7 +23,7 @@ export function TopologySection({ data }: TopologySectionProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="section-card">
           <div className="data-label">Links Detected</div>
-          <div className="data-value">{data.topology.links.length}</div>
+          <div className="data-value">{linkIds.length}</div>
         </div>
         <div className="section-card">
           <div className="data-label">Total Cells</div>
@@ -34,7 +36,7 @@ export function TopologySection({ data }: TopologySectionProps) {
         <div className="section-card">
           <div className="data-label">Outliers</div>
           <div className="data-value text-status-low">
-            {data.outliers.length}
+            {outliersList.length}
           </div>
         </div>
       </div>

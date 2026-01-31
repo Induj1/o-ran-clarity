@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { AnalysisResponse, Outlier, TopologyConfidence } from "@/types/api";
+import { AnalysisResponse } from "@/types/api";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Server, Radio, Link as LinkIcon } from "lucide-react";
 import {
@@ -13,8 +13,8 @@ interface TopologyGraphProps {
 }
 
 function getConfidenceLevel(confidence: number): "high" | "medium" | "low" {
-  if (confidence >= 90) return "high";
-  if (confidence >= 75) return "medium";
+  if (confidence >= 80) return "high";
+  if (confidence >= 60) return "medium";
   return "low";
 }
 
@@ -30,7 +30,7 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
         level === "low" && "bg-status-low/20 text-status-low"
       )}
     >
-      {confidence.toFixed(1)}%
+      {confidence.toFixed(0)}%
     </span>
   );
 }
@@ -76,17 +76,22 @@ function CellNode({
 }
 
 export function TopologyGraph({ data }: TopologyGraphProps) {
+  // Build outlier map
   const outlierMap = useMemo(() => {
-    const map = new Map<string, Outlier>();
-    data.outliers.forEach((o) => map.set(o.cell_id, o));
+    const map = new Map<string, { reason?: string }>();
+    const outliersList = Array.isArray(data.outliers) ? data.outliers : [];
+    outliersList.forEach((o) => map.set(`Cell ${o.cell_id}`, { reason: o.reason }));
     return map;
   }, [data.outliers]);
 
-  const confidenceMap = useMemo(() => {
-    const map = new Map<string, TopologyConfidence>();
-    data.confidence.forEach((c) => map.set(c.link_id, c));
-    return map;
-  }, [data.confidence]);
+  // Transform topology to array format
+  const links = useMemo(() => {
+    return Object.entries(data.topology).map(([linkId, cellIds]) => ({
+      link_id: `Link ${linkId}`,
+      cells: cellIds.map((id) => `Cell ${id}`),
+      confidence: data.topology_confidence[linkId] ?? 0,
+    }));
+  }, [data.topology, data.topology_confidence]);
 
   return (
     <div className="relative">
@@ -102,9 +107,8 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
       <div className="relative">
         {/* Links Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {data.topology.links.map((link) => {
-            const confidence = confidenceMap.get(link.link_id);
-            const confidenceValue = confidence?.confidence ?? 0;
+          {links.map((link) => {
+            const confidenceValue = link.confidence;
             const level = getConfidenceLevel(confidenceValue);
 
             return (

@@ -15,25 +15,28 @@ interface InsightItem {
 export function SummarySection({ data }: SummarySectionProps) {
   const insights = useMemo<InsightItem[]>(() => {
     const items: InsightItem[] = [];
+    const linkIds = Object.keys(data.topology);
 
     // Topology insights
     items.push({
       icon: GitBranch,
-      text: `${data.topology.links.length} fronthaul links were inferred from packet-loss correlation analysis.`,
+      text: `${linkIds.length} fronthaul links were inferred from packet-loss correlation analysis.`,
       category: "topology",
     });
 
-    const highestConfLink = data.confidence.reduce((prev, curr) =>
-      curr.confidence > prev.confidence ? curr : prev
+    const confidenceEntries = Object.entries(data.topology_confidence);
+    const highestConfLink = confidenceEntries.reduce((prev, curr) =>
+      curr[1] > prev[1] ? curr : prev
     );
     items.push({
       icon: CheckCircle2,
-      text: `${highestConfLink.link_id} shows the highest topology confidence at ${highestConfLink.confidence.toFixed(1)}%.`,
+      text: `Link ${highestConfLink[0]} shows the highest topology confidence at ${highestConfLink[1].toFixed(1)}%.`,
       category: "topology",
     });
 
-    if (data.outliers.length > 0) {
-      const outlierCells = data.outliers.map((o) => o.cell_id).join(", ");
+    const outliersList = Array.isArray(data.outliers) ? data.outliers : [];
+    if (outliersList.length > 0) {
+      const outlierCells = outliersList.map((o) => `Cell ${o.cell_id}`).join(", ");
       items.push({
         icon: AlertTriangle,
         text: `Outlier detected: ${outlierCells} shows weaker correlation with assigned link traffic patterns.`,
@@ -42,18 +45,19 @@ export function SummarySection({ data }: SummarySectionProps) {
     }
 
     // Capacity insights
-    const maxSaving = data.bandwidth_savings.reduce((prev, curr) =>
-      curr.savings_percent > prev.savings_percent ? curr : prev
+    const savingsEntries = Object.entries(data.bandwidth_savings_pct);
+    const maxSaving = savingsEntries.reduce((prev, curr) =>
+      curr[1] > prev[1] ? curr : prev
     );
     items.push({
       icon: TrendingDown,
-      text: `Buffering reduces required capacity by up to ${maxSaving.savings_percent.toFixed(1)}% on ${maxSaving.link_id}.`,
+      text: `Buffering reduces required capacity by up to ${maxSaving[1].toFixed(1)}% on Link ${maxSaving[0]}.`,
       category: "capacity",
     });
 
     const totalReduction =
-      Object.values(data.capacities.no_buffer).reduce((a, b) => a + b, 0) -
-      Object.values(data.capacities.with_buffer).reduce((a, b) => a + b, 0);
+      Object.values(data.capacity.no_buffer_gbps).reduce((a, b) => a + b, 0) -
+      Object.values(data.capacity.with_buffer_gbps).reduce((a, b) => a + b, 0);
     items.push({
       icon: TrendingDown,
       text: `Total network capacity can be reduced by ${totalReduction.toFixed(1)} Gbps while maintaining ≤1% packet loss.`,
@@ -62,21 +66,20 @@ export function SummarySection({ data }: SummarySectionProps) {
 
     // Congestion insights
     const eventsByLink: Record<string, number> = {};
-    data.root_cause_attribution.events.forEach((e) => {
-      eventsByLink[e.link_id] = (eventsByLink[e.link_id] || 0) + 1;
+    Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
+      eventsByLink[linkId] = events.length;
     });
     const mostCongestedLink = Object.entries(eventsByLink).reduce((prev, curr) =>
       curr[1] > prev[1] ? curr : prev
     );
 
     // Find top contributors for that link
-    const topContributors = data.root_cause_attribution.events
-      .filter((e) => e.link_id === mostCongestedLink[0])
-      .flatMap((e) => e.contributors)
-      .reduce((acc, c) => {
-        acc[c.cell_id] = (acc[c.cell_id] || 0) + c.contribution_percent;
-        return acc;
-      }, {} as Record<string, number>);
+    const topContributors: Record<string, number> = {};
+    data.root_cause_attribution[mostCongestedLink[0]]?.forEach((event) => {
+      event.contributors.forEach((c) => {
+        topContributors[`Cell ${c.cell_id}`] = (topContributors[`Cell ${c.cell_id}`] || 0) + c.pct;
+      });
+    });
 
     const topTwo = Object.entries(topContributors)
       .sort((a, b) => b[1] - a[1])
@@ -85,7 +88,7 @@ export function SummarySection({ data }: SummarySectionProps) {
 
     items.push({
       icon: AlertTriangle,
-      text: `Congestion on ${mostCongestedLink[0]} is typically driven by ${topTwo.join(" and ")}.`,
+      text: `Congestion on Link ${mostCongestedLink[0]} is typically driven by ${topTwo.join(" and ")}.`,
       category: "congestion",
     });
 
