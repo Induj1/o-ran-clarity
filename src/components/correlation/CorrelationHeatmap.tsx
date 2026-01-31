@@ -119,19 +119,14 @@ export function CorrelationHeatmap({ data }: CorrelationHeatmapProps) {
                 </div>
                 
                 {/* Row cells */}
-                {row.map((value, j) => {
-                  const isDiagonal = i === j;
-                  
-                  return (
+                {row.map((value, j) => (
                     <div
                       key={`cell-${i}-${j}`}
                       className="group relative cursor-pointer transition-transform hover:scale-110 hover:z-10"
                       style={{
                         width: cellSize,
                         height: cellSize,
-                        backgroundColor: isDiagonal 
-                          ? 'hsl(var(--muted))' 
-                          : getCorrelationColor(value),
+                        backgroundColor: getCorrelationColor(value),
                         borderRadius: 2,
                       }}
                       title={`Cell ${cells[i]} ↔ Cell ${cells[j]}: ${(value * 100).toFixed(1)}%`}
@@ -143,8 +138,7 @@ export function CorrelationHeatmap({ data }: CorrelationHeatmapProps) {
                         </span>
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
               </div>
             ))}
           </div>
