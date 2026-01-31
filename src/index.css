@@ -374,29 +374,25 @@
     }
   }
 
-  /* Cell flow animation - flows from left to right */
+  /* Cell flow animation - flows from left to right and stays */
   .animate-flow-cell {
-    animation: flowCell 3s ease-in-out forwards;
+    animation: flowCell 2.5s ease-out forwards;
   }
 
   @keyframes flowCell {
     0% {
       left: 0%;
       opacity: 0;
-      transform: scale(0.5);
+      transform: scale(0.5) translateX(0);
     }
-    15% {
+    20% {
       opacity: 1;
-      transform: scale(1);
-    }
-    85% {
-      opacity: 1;
-      transform: scale(1);
+      transform: scale(1) translateX(0);
     }
     100% {
-      left: calc(100% - 50px);
-      opacity: 0;
-      transform: scale(0.8);
+      left: calc(100% - 40px - var(--end-offset, 0px));
+      opacity: 1;
+      transform: scale(0.85) translateX(0);
     }
   }
 

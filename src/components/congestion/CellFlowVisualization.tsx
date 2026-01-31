@@ -134,18 +134,20 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
                 {/* Cell particles */}
                 {particles
                   .filter((p) => p.linkId === link.linkId)
-                  .map((particle) => (
+                  .map((particle, pIdx) => (
                     <div
                       key={`${animationKey}-${particle.id}`}
                       className="absolute h-8 top-2 rounded-full flex items-center justify-center text-[10px] font-bold animate-flow-cell"
                       style={{
-                        width: `${Math.max(32, particle.pct * 1.2)}px`,
+                        width: `${Math.max(28, particle.pct * 0.8)}px`,
                         backgroundColor: colors.main,
                         color: "hsl(var(--background))",
                         animationDelay: `${particle.delay}s`,
                         boxShadow: `0 0 10px ${colors.glow}`,
                         opacity: 0,
-                      }}
+                        // Stack particles at the end with offset
+                        "--end-offset": `${pIdx * 6}px`,
+                      } as React.CSSProperties}
                     >
                       {particle.cellId}
                     </div>
