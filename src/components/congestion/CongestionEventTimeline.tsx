@@ -1,257 +1,273 @@
 import { CongestionEvent } from "@/types/api";
-import { AlertTriangle, Clock, Radio } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CongestionEventTimelineProps {
   events: CongestionEvent[];
 }
 
-// Generate distinct colors for links
-const LINK_COLORS: Record<string, string> = {
-  "Link 1": "hsl(var(--chart-1))",
-  "Link 2": "hsl(var(--chart-2))",
-  "Link 3": "hsl(var(--chart-3))",
+// Link colors matching the design system
+const LINK_CONFIG: Record<string, { color: string; label: string }> = {
+  "Link 1": { color: "hsl(var(--chart-1))", label: "Link 1" },
+  "Link 2": { color: "hsl(var(--chart-2))", label: "Link 2" },
+  "Link 3": { color: "hsl(var(--chart-3))", label: "Link 3" },
 };
 
 export function CongestionEventTimeline({ events }: CongestionEventTimelineProps) {
-  const [activeEvent, setActiveEvent] = useState<number | null>(null);
+  const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
 
-  // Group events by unique timestamp to avoid overlap
-  const groupedEvents = useMemo(() => {
-    const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
-    const groups: { timestamp: number; events: typeof events }[] = [];
+  // Group events by link
+  const eventsByLink = useMemo(() => {
+    const grouped: Record<string, CongestionEvent[]> = {
+      "Link 1": [],
+      "Link 2": [],
+      "Link 3": [],
+    };
     
-    sorted.forEach((event) => {
-      // Find if there's an existing group within 0.05s
-      const existingGroup = groups.find(
-        (g) => Math.abs(g.timestamp - event.timestamp) < 0.05
-      );
-      if (existingGroup) {
-        existingGroup.events.push(event);
-      } else {
-        groups.push({ timestamp: event.timestamp, events: [event] });
+    events.forEach((event) => {
+      if (grouped[event.link_id]) {
+        grouped[event.link_id].push(event);
       }
     });
     
-    return groups;
+    // Sort each link's events by timestamp
+    Object.keys(grouped).forEach((linkId) => {
+      grouped[linkId].sort((a, b) => a.timestamp - b.timestamp);
+    });
+    
+    return grouped;
   }, [events]);
 
   const timeRange = useMemo(() => {
-    if (groupedEvents.length === 0) return { min: 0, max: 1 };
-    const timestamps = groupedEvents.map((g) => g.timestamp);
+    if (events.length === 0) return { min: 0, max: 1 };
+    const timestamps = events.map((e) => e.timestamp);
     return {
       min: Math.min(...timestamps),
       max: Math.max(...timestamps),
     };
-  }, [groupedEvents]);
+  }, [events]);
 
   const getPositionPercent = (timestamp: number) => {
     const range = timeRange.max - timeRange.min;
-    if (range === 0) return 50;
-    return ((timestamp - timeRange.min) / range) * 100;
+    if (range === 0) return 5;
+    return 5 + ((timestamp - timeRange.min) / range) * 90; // 5-95% range
   };
 
+  // Generate time markers
+  const timeMarkers = useMemo(() => {
+    const { min, max } = timeRange;
+    const range = max - min;
+    const step = range / 4;
+    return [min, min + step, min + step * 2, min + step * 3, max];
+  }, [timeRange]);
+
   return (
-    <div className="section-card space-y-8">
-      {/* Timeline Header */}
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Clock className="w-4 h-4" />
-        <span className="text-sm font-medium">Congestion Event Timeline</span>
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs font-mono">
-          {timeRange.min.toFixed(2)}s — {timeRange.max.toFixed(2)}s
-        </span>
-      </div>
-
-      {/* Timeline - Horizontal with grouped events */}
-      <div className="overflow-x-auto pb-4">
-        <div className="relative min-w-[900px]">
-          {/* Timeline Base Track */}
-          <div className="h-3 bg-muted rounded-full relative overflow-hidden mx-20">
-            <div 
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/40 to-accent/40 rounded-full"
-              style={{ width: '100%' }}
-            />
+    <TooltipProvider>
+      <div className="section-card space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            <span className="font-medium">Event Timeline</span>
           </div>
-
-          {/* Time Axis Labels */}
-          <div className="flex justify-between mx-20 mt-2 text-xs text-muted-foreground font-mono">
-            <span>{timeRange.min.toFixed(2)}s</span>
-            <span>{((timeRange.min + timeRange.max) / 2).toFixed(2)}s</span>
-            <span>{timeRange.max.toFixed(2)}s</span>
-          </div>
-
-          {/* Grouped Event Markers */}
-          <div className="relative h-40 mt-8 mx-20">
-            {groupedEvents.map((group, groupIdx) => {
-              const leftPercent = getPositionPercent(group.timestamp);
-              const isAnyActive = group.events.some((_, idx) => 
-                activeEvent === events.indexOf(group.events[idx])
-              );
-
-              return (
-                <div
-                  key={groupIdx}
-                  className="absolute transform -translate-x-1/2"
-                  style={{ left: `${leftPercent}%` }}
-                >
-                  {/* Connector Line */}
-                  <div className="w-0.5 h-6 mx-auto bg-muted-foreground/30" />
-
-                  {/* Stacked event nodes for this timestamp */}
-                  <div className="flex flex-col items-center gap-1">
-                    {group.events.map((event, eventIdx) => {
-                      const globalIdx = events.indexOf(event);
-                      const isActive = activeEvent === globalIdx;
-                      const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
-
-                      return (
-                        <div
-                          key={eventIdx}
-                          className="flex flex-col items-center cursor-pointer transition-all duration-200"
-                          onMouseEnter={() => setActiveEvent(globalIdx)}
-                          onMouseLeave={() => setActiveEvent(null)}
-                        >
-                          {/* Event Node */}
-                          <div
-                            className={`
-                              w-9 h-9 rounded-full flex items-center justify-center
-                              border-2 transition-all duration-200
-                              ${isActive ? "scale-110 shadow-md" : "scale-100"}
-                            `}
-                            style={{
-                              borderColor: linkColor,
-                              backgroundColor: isActive ? linkColor : "hsl(var(--card))",
-                            }}
-                          >
-                            <Radio
-                              className="w-4 h-4"
-                              style={{ color: isActive ? "hsl(var(--card))" : linkColor }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Single timestamp label for the group */}
-                  <div className="mt-2 text-center">
-                    <div className="flex flex-wrap justify-center gap-1 mb-1">
-                      {group.events.map((event, idx) => {
-                        const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
-                        return (
-                          <span
-                            key={idx}
-                            className="px-1.5 py-0.5 rounded text-[9px] font-medium"
-                            style={{ backgroundColor: `${linkColor}20`, color: linkColor }}
-                          >
-                            {event.link_id}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground font-mono">
-                      t={group.timestamp.toFixed(2)}s
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
+            {timeRange.min.toFixed(2)}s → {timeRange.max.toFixed(2)}s
+          </span>
         </div>
-      </div>
 
-      {/* Event Details - Grouped by timestamp */}
-      <div className="overflow-x-auto pb-2">
-        <div className="flex gap-4 min-w-min">
-          {groupedEvents.flatMap((group) => group.events).map((event, idx) => {
-            const isActive = activeEvent === idx;
-            const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
+        {/* Lane-based Timeline */}
+        <div className="space-y-1">
+          {/* Time axis header */}
+          <div className="flex items-center h-8 border-b border-border/50">
+            <div className="w-20 flex-shrink-0" />
+            <div className="flex-1 relative">
+              {timeMarkers.map((time, idx) => (
+                <span
+                  key={idx}
+                  className="absolute text-[10px] text-muted-foreground font-mono -translate-x-1/2"
+                  style={{ left: `${getPositionPercent(time)}%` }}
+                >
+                  {time.toFixed(2)}s
+                </span>
+              ))}
+            </div>
+          </div>
 
+          {/* Link lanes */}
+          {Object.entries(LINK_CONFIG).map(([linkId, config]) => {
+            const linkEvents = eventsByLink[linkId] || [];
+            
             return (
               <div
-                key={idx}
-                className={`
-                  p-4 rounded-lg border transition-all duration-300 cursor-pointer flex-shrink-0 w-64
-                  ${isActive ? "border-primary bg-primary/5 scale-[1.02]" : "border-border bg-card/50 hover:bg-card"}
-                `}
-                onMouseEnter={() => setActiveEvent(idx)}
-                onMouseLeave={() => setActiveEvent(null)}
+                key={linkId}
+                className="flex items-center h-14 group hover:bg-muted/30 rounded-lg transition-colors"
               >
-                {/* Event Header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div
-                    className="px-2 py-1 rounded text-xs font-medium"
-                    style={{ backgroundColor: `${linkColor}20`, color: linkColor }}
+                {/* Link label */}
+                <div className="w-20 flex-shrink-0 px-2">
+                  <span
+                    className="text-xs font-medium px-2 py-1 rounded"
+                    style={{ 
+                      backgroundColor: `${config.color}15`,
+                      color: config.color 
+                    }}
                   >
-                    {event.link_id}
-                  </div>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    t={event.timestamp.toFixed(2)}s
+                    {config.label}
                   </span>
                 </div>
 
-                {/* Contributors */}
-                <div className="space-y-2.5">
-                      {event.contributors.slice(0, 4).map((contributor, cIdx) => {
-                    const isHighContributor = contributor.contribution_percent > 20;
-                    // Extract just the number from "Cell X" if it already has "Cell" prefix
-                    const cellDisplay = contributor.cell_id.startsWith("Cell ") 
-                      ? contributor.cell_id 
-                      : `Cell ${contributor.cell_id}`;
+                {/* Timeline track */}
+                <div className="flex-1 relative h-full">
+                  {/* Track background */}
+                  <div 
+                    className="absolute top-1/2 left-0 right-0 h-1 -translate-y-1/2 rounded-full opacity-20"
+                    style={{ backgroundColor: config.color }}
+                  />
+
+                  {/* Event dots */}
+                  {linkEvents.map((event, idx) => {
+                    const eventId = `${linkId}-${idx}`;
+                    const isHovered = hoveredEvent === eventId;
+                    const topContributor = event.contributors[0];
+                    const isHighSeverity = topContributor && topContributor.contribution_percent > 50;
 
                     return (
-                      <div key={cIdx} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-1.5">
-                            {isHighContributor && (
-                              <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-medium))]" />
-                            )}
-                            <span className={isHighContributor ? "text-[hsl(var(--status-medium))] font-medium" : "text-muted-foreground"}>
-                              {cellDisplay}
-                            </span>
-                          </div>
-                          <span className={`font-mono ${isHighContributor ? "text-[hsl(var(--status-medium))] font-medium" : "text-foreground"}`}>
-                            {contributor.contribution_percent.toFixed(1)}%
-                          </span>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <Tooltip key={idx}>
+                        <TooltipTrigger asChild>
                           <div
-                            className="h-full rounded-full transition-all duration-700 ease-out"
-                            style={{
-                              width: `${Math.min(contributor.contribution_percent * 2, 100)}%`,
-                              backgroundColor: isHighContributor
-                                ? "hsl(var(--status-medium))"
-                                : linkColor,
-                            }}
-                          />
-                        </div>
-                      </div>
+                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer transition-all duration-200"
+                            style={{ left: `${getPositionPercent(event.timestamp)}%` }}
+                            onMouseEnter={() => setHoveredEvent(eventId)}
+                            onMouseLeave={() => setHoveredEvent(null)}
+                          >
+                            {/* Event marker */}
+                            <div
+                              className={`
+                                w-4 h-4 rounded-full border-2 transition-all duration-200
+                                ${isHovered ? "scale-150 shadow-lg" : "scale-100"}
+                                ${isHighSeverity ? "animate-pulse" : ""}
+                              `}
+                              style={{
+                                borderColor: config.color,
+                                backgroundColor: isHovered ? config.color : "hsl(var(--background))",
+                                boxShadow: isHovered ? `0 0 12px ${config.color}` : undefined,
+                              }}
+                            />
+                            
+                            {/* Severity indicator */}
+                            {isHighSeverity && (
+                              <div className="absolute -top-1 -right-1">
+                                <AlertTriangle 
+                                  className="w-2.5 h-2.5" 
+                                  style={{ color: "hsl(var(--status-medium))" }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent 
+                          side="top" 
+                          className="p-3 max-w-xs"
+                          style={{ borderColor: config.color }}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-4">
+                              <span 
+                                className="text-xs font-medium px-1.5 py-0.5 rounded"
+                                style={{ backgroundColor: `${config.color}20`, color: config.color }}
+                              >
+                                {event.link_id}
+                              </span>
+                              <span className="text-xs font-mono text-muted-foreground">
+                                t={event.timestamp.toFixed(2)}s
+                              </span>
+                            </div>
+                            
+                            <div className="space-y-1.5">
+                              {event.contributors.slice(0, 3).map((contrib, cIdx) => {
+                                const cellId = contrib.cell_id.startsWith("Cell ") 
+                                  ? contrib.cell_id 
+                                  : `Cell ${contrib.cell_id}`;
+                                const isHigh = contrib.contribution_percent > 20;
+                                
+                                return (
+                                  <div key={cIdx} className="flex items-center justify-between gap-2 text-xs">
+                                    <span className={isHigh ? "text-[hsl(var(--status-medium))] font-medium" : "text-muted-foreground"}>
+                                      {cellId}
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full"
+                                          style={{
+                                            width: `${Math.min(contrib.contribution_percent, 100)}%`,
+                                            backgroundColor: isHigh ? "hsl(var(--status-medium))" : config.color,
+                                          }}
+                                        />
+                                      </div>
+                                      <span className="font-mono w-12 text-right">
+                                        {contrib.contribution_percent.toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {event.contributors.length > 3 && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  +{event.contributors.length - 3} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     );
                   })}
-                  {event.contributors.length > 4 && (
-                    <div className="text-xs text-muted-foreground text-center pt-1">
-                      +{event.contributors.length - 4} more contributors
-                    </div>
-                  )}
+                </div>
+
+                {/* Event count */}
+                <div className="w-12 flex-shrink-0 text-right pr-2">
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {linkEvents.length}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Summary stats */}
+        <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border/50">
+          {Object.entries(LINK_CONFIG).map(([linkId, config]) => {
+            const linkEvents = eventsByLink[linkId] || [];
+            const totalContributors = linkEvents.reduce(
+              (acc, e) => acc + e.contributors.length, 
+              0
+            );
+            
+            return (
+              <div
+                key={linkId}
+                className="flex items-center justify-between p-2 rounded-lg"
+                style={{ backgroundColor: `${config.color}08` }}
+              >
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: config.color }}
+                  />
+                  <span className="text-xs font-medium" style={{ color: config.color }}>
+                    {config.label}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-mono">{linkEvents.length}</span> events
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-6 pt-2">
-        {Object.entries(LINK_COLORS).map(([linkId, color]) => (
-          <div key={linkId} className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-            <span className="text-muted-foreground">{linkId}</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    </TooltipProvider>
   );
 }
