@@ -1,5 +1,5 @@
 import { AnalysisResponse } from "@/types/api";
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Activity, TrendingUp } from "lucide-react";
 
@@ -9,78 +9,139 @@ interface TrafficPatternChartProps {
 
 // Generate distinct colors for links
 const LINK_COLORS = [
-  "hsl(195, 70%, 50%)",   // chart-1
-  "hsl(168, 55%, 45%)",   // chart-2
-  "hsl(142, 50%, 48%)",   // chart-3
-  "hsl(38, 75%, 55%)",    // chart-4
-  "hsl(280, 45%, 55%)",   // chart-5
+  "hsl(195, 70%, 50%)",
+  "hsl(168, 55%, 45%)",
+  "hsl(142, 50%, 48%)",
+  "hsl(38, 75%, 55%)",
+  "hsl(280, 45%, 55%)",
 ];
 
-export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
-  const [selectedLink, setSelectedLink] = useState<string | null>(null);
+const MAX_DATA_POINTS = 200; // Maximum points to render for performance
 
-  // Transform traffic_patterns from API into chart data format
-  const { chartData, timeRange } = useMemo(() => {
-    const links = Object.keys(data.traffic_patterns || {});
-    if (links.length === 0) {
-      return { chartData: [], timeRange: { min: 0, max: 60 } };
-    }
+// Downsample data using LTTB (Largest Triangle Three Buckets) algorithm simplified
+function downsampleData(
+  times: number[],
+  values: number[],
+  targetPoints: number
+): { time: number; value: number }[] {
+  if (times.length <= targetPoints) {
+    return times.map((t, i) => ({ time: t, value: values[i] }));
+  }
 
-    // Get all unique time points across all links
-    const allTimePoints = new Set<number>();
-    links.forEach((linkId) => {
-      const pattern = data.traffic_patterns[linkId];
-      if (pattern?.time_seconds) {
-        pattern.time_seconds.forEach((t) => allTimePoints.add(t));
+  const result: { time: number; value: number }[] = [];
+  const bucketSize = (times.length - 2) / (targetPoints - 2);
+
+  // Always keep first point
+  result.push({ time: times[0], value: values[0] });
+
+  for (let i = 0; i < targetPoints - 2; i++) {
+    const bucketStart = Math.floor(i * bucketSize) + 1;
+    const bucketEnd = Math.floor((i + 1) * bucketSize) + 1;
+    
+    // Find max value point in bucket (simplified from LTTB)
+    let maxIdx = bucketStart;
+    let maxVal = values[bucketStart];
+    for (let j = bucketStart + 1; j < bucketEnd && j < times.length - 1; j++) {
+      if (values[j] > maxVal) {
+        maxVal = values[j];
+        maxIdx = j;
       }
-    });
+    }
+    result.push({ time: times[maxIdx], value: values[maxIdx] });
+  }
 
-    const sortedTimes = Array.from(allTimePoints).sort((a, b) => a - b);
-    const minTime = sortedTimes[0] || 0;
-    const maxTime = sortedTimes[sortedTimes.length - 1] || 60;
+  // Always keep last point
+  result.push({ time: times[times.length - 1], value: values[values.length - 1] });
 
-    // Build chart data with all links' data rates at each time point
-    const chartData = sortedTimes.map((time) => {
-      const point: Record<string, number> = { time };
-      
-      links.forEach((linkId) => {
-        const pattern = data.traffic_patterns[linkId];
-        if (pattern?.time_seconds && pattern?.data_rate_gbps) {
-          const idx = pattern.time_seconds.indexOf(time);
-          if (idx !== -1) {
-            point[`link_${linkId}`] = pattern.data_rate_gbps[idx];
-          }
-        }
-      });
-      
-      return point;
-    });
+  return result;
+}
 
-    return { 
-      chartData, 
-      timeRange: { min: minTime, max: maxTime } 
-    };
-  }, [data]);
+export const TrafficPatternChart = memo(function TrafficPatternChart({ data }: TrafficPatternChartProps) {
+  const [selectedLink, setSelectedLink] = useState<string | null>(null);
 
   const links = Object.keys(data.traffic_patterns || {});
 
-  // Calculate appropriate tick interval based on time range
-  const tickInterval = useMemo(() => {
-    const range = timeRange.max - timeRange.min;
-    if (range <= 10) return 1;
-    if (range <= 30) return 5;
-    if (range <= 60) return 10;
-    return Math.ceil(range / 6);
-  }, [timeRange]);
+  // Transform and downsample traffic_patterns
+  const { chartData, timeRange, stats } = useMemo(() => {
+    if (links.length === 0) {
+      return { chartData: [], timeRange: { min: 0, max: 60 }, stats: {} };
+    }
 
-  // Generate tick values
+    // Downsample each link's data
+    const downsampledLinks: Record<string, { time: number; value: number }[]> = {};
+    const statsMap: Record<string, { max: number; avg: number; count: number }> = {};
+
+    let globalMin = Infinity;
+    let globalMax = -Infinity;
+
+    links.forEach((linkId) => {
+      const pattern = data.traffic_patterns[linkId];
+      if (pattern?.time_seconds && pattern?.data_rate_gbps) {
+        const times = pattern.time_seconds;
+        const values = pattern.data_rate_gbps;
+        
+        // Calculate stats before downsampling
+        const max = Math.max(...values);
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        statsMap[linkId] = { max, avg, count: values.length };
+
+        // Update global time range
+        if (times.length > 0) {
+          globalMin = Math.min(globalMin, times[0]);
+          globalMax = Math.max(globalMax, times[times.length - 1]);
+        }
+
+        // Downsample
+        downsampledLinks[linkId] = downsampleData(times, values, MAX_DATA_POINTS);
+      }
+    });
+
+    // Merge all downsampled data into unified time points
+    const allTimes = new Set<number>();
+    Object.values(downsampledLinks).forEach((points) => {
+      points.forEach((p) => allTimes.add(p.time));
+    });
+
+    const sortedTimes = Array.from(allTimes).sort((a, b) => a - b);
+
+    // Build chart data
+    const chartData = sortedTimes.map((time) => {
+      const point: Record<string, number> = { time };
+      links.forEach((linkId) => {
+        const linkData = downsampledLinks[linkId];
+        if (linkData) {
+          // Find closest point
+          const closest = linkData.find((p) => p.time === time);
+          if (closest) {
+            point[`link_${linkId}`] = closest.value;
+          }
+        }
+      });
+      return point;
+    });
+
+    return {
+      chartData,
+      timeRange: { min: globalMin === Infinity ? 0 : globalMin, max: globalMax === -Infinity ? 60 : globalMax },
+      stats: statsMap,
+    };
+  }, [data, links]);
+
+  // Calculate appropriate tick interval
   const tickValues = useMemo(() => {
+    const range = timeRange.max - timeRange.min;
+    let interval = 10;
+    if (range <= 10) interval = 1;
+    else if (range <= 30) interval = 5;
+    else if (range <= 60) interval = 10;
+    else interval = Math.ceil(range / 6);
+
     const ticks: number[] = [];
-    for (let t = Math.ceil(timeRange.min / tickInterval) * tickInterval; t <= timeRange.max; t += tickInterval) {
+    for (let t = Math.ceil(timeRange.min / interval) * interval; t <= timeRange.max; t += interval) {
       ticks.push(t);
     }
     return ticks;
-  }, [timeRange, tickInterval]);
+  }, [timeRange]);
 
   if (links.length === 0) {
     return (
@@ -115,7 +176,9 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
         </div>
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Live traffic analysis</span>
+          <span className="text-xs text-muted-foreground">
+            {chartData.length} points (downsampled)
+          </span>
         </div>
       </div>
 
@@ -179,7 +242,7 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
                   fontSize: "12px",
                 }}
                 labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-                labelFormatter={(value) => `Time: ${value}s`}
+                labelFormatter={(value) => `Time: ${Number(value).toFixed(2)}s`}
                 formatter={(value: number, name: string) => [
                   `${value.toFixed(2)} Gbps`,
                   name.replace("link_", "Link "),
@@ -202,13 +265,9 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
                     stroke={LINK_COLORS[idx % LINK_COLORS.length]}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ 
-                      r: 5, 
-                      fill: LINK_COLORS[idx % LINK_COLORS.length], 
-                      strokeWidth: 2, 
-                      stroke: "hsl(var(--background))" 
-                    }}
+                    activeDot={{ r: 4 }}
                     connectNulls
+                    isAnimationActive={false}
                   />
                 ))}
             </LineChart>
@@ -221,10 +280,7 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
         {links
           .filter((linkId) => selectedLink === null || selectedLink === linkId)
           .map((linkId, idx) => {
-            const pattern = data.traffic_patterns[linkId];
-            const rates = pattern?.data_rate_gbps || [];
-            const maxRate = Math.max(...rates);
-            const avgRate = rates.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
+            const linkStats = stats[linkId] || { max: 0, avg: 0, count: 0 };
             const confidence = data.confidence?.[linkId] || 0;
 
             return (
@@ -242,14 +298,18 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
                     {confidence}% confidence
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <div className="text-muted-foreground text-xs">Peak Rate</div>
-                    <div className="font-mono font-medium">{maxRate.toFixed(2)} Gbps</div>
+                    <div className="text-muted-foreground text-xs">Peak</div>
+                    <div className="font-mono font-medium">{linkStats.max.toFixed(1)} Gbps</div>
                   </div>
                   <div>
-                    <div className="text-muted-foreground text-xs">Avg Rate</div>
-                    <div className="font-mono font-medium">{avgRate.toFixed(2)} Gbps</div>
+                    <div className="text-muted-foreground text-xs">Avg</div>
+                    <div className="font-mono font-medium">{linkStats.avg.toFixed(1)} Gbps</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground text-xs">Samples</div>
+                    <div className="font-mono font-medium">{linkStats.count.toLocaleString()}</div>
                   </div>
                 </div>
               </div>
@@ -258,4 +318,4 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
       </div>
     </div>
   );
-}
+});
