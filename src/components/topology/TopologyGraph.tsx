@@ -112,16 +112,9 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
         >
           {/* Lines from DU to each link */}
           {links.map((link, idx) => {
-            const level = getConfidenceLevel(link.confidence);
             const totalLinks = links.length;
             // Calculate x position for each link (evenly distributed)
             const xPercent = ((idx + 0.5) / totalLinks) * 100;
-            
-            const strokeColor = level === "high" 
-              ? "hsl(var(--status-high))" 
-              : level === "medium" 
-                ? "hsl(var(--status-medium))" 
-                : "hsl(var(--status-low))";
 
             return (
               <line
@@ -130,7 +123,7 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
                 y1="0"
                 x2={`${xPercent}%`}
                 y2="100%"
-                stroke={strokeColor}
+                stroke="hsl(var(--status-medium))"
                 strokeWidth="2"
                 strokeOpacity="0.5"
               />
@@ -147,24 +140,12 @@ export function TopologyGraph({ data }: TopologyGraphProps) {
             return (
               <div
                 key={link.link_id}
-                className={cn(
-                  "relative p-4 rounded-lg border transition-all bg-card",
-                  level === "high" && "border-status-high/30",
-                  level === "medium" && "border-status-medium/30",
-                  level === "low" && "border-status-low/30"
-                )}
+                className="relative p-4 rounded-lg border transition-all bg-card border-status-medium/30"
               >
                 {/* Link Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        "w-8 h-8 rounded-md flex items-center justify-center",
-                        level === "high" && "bg-status-high/20 text-status-high",
-                        level === "medium" && "bg-status-medium/20 text-status-medium",
-                        level === "low" && "bg-status-low/20 text-status-low"
-                      )}
-                    >
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center bg-status-medium/20 text-status-medium">
                       <LinkIcon className="w-4 h-4" />
                     </div>
                     <span className="font-semibold text-foreground">{link.link_id}</span>
