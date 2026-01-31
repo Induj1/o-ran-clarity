@@ -1,12 +1,39 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { Header } from "@/components/layout/Header";
+import { Navigation } from "@/components/layout/Navigation";
+import { TopologySection } from "@/components/topology/TopologySection";
+import { CapacitySection } from "@/components/capacity/CapacitySection";
+import { CongestionSection } from "@/components/congestion/CongestionSection";
+import { SummarySection } from "@/components/summary/SummarySection";
+import { mockAnalysisData } from "@/data/mockData";
 
 const Index = () => {
+  const [activeSection, setActiveSection] = useState("topology");
+  const data = mockAnalysisData;
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case "topology":
+        return <TopologySection data={data} />;
+      case "capacity":
+        return <CapacitySection data={data} />;
+      case "congestion":
+        return <CongestionSection data={data} />;
+      case "summary":
+        return <SummarySection data={data} />;
+      default:
+        return <TopologySection data={data} />;
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Header />
+      <Navigation activeSection={activeSection} onSectionChange={setActiveSection} />
+      
+      <main className="container mx-auto px-6 py-8">
+        {renderSection()}
+      </main>
     </div>
   );
 };
