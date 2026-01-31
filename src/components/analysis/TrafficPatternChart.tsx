@@ -30,8 +30,8 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
   const chartData = useMemo(() => {
     const timePoints: Record<number, Record<string, number>> = {};
     
-    // Use a time range from 0 to 5 seconds with 0.1s intervals for more granular data
-    for (let t = 0; t <= 5; t += 0.1) {
+    // Use a time range from 0 to 10 seconds with 0.2s intervals
+    for (let t = 0; t <= 10; t += 0.2) {
       const roundedT = Math.round(t * 10) / 10;
       timePoints[roundedT] = { time: roundedT };
     }
@@ -42,35 +42,49 @@ export function TrafficPatternChart({ data }: TrafficPatternChartProps) {
       cells.forEach((cellId) => allCells.add(cellId));
     });
 
-    // Initialize all cells with baseline values
+    // Create unique patterns for each cell with different phases and frequencies
+    const cellPatterns: Record<number, { phase: number; freq: number; baseLevel: number }> = {};
+    Array.from(allCells).forEach((cellId, idx) => {
+      cellPatterns[cellId] = {
+        phase: (idx * 1.3) % (Math.PI * 2),
+        freq: 0.3 + (idx % 5) * 0.15,
+        baseLevel: 0.05 + (idx % 4) * 0.08,
+      };
+    });
+
+    // Initialize all cells with unique wave patterns
     Object.keys(timePoints).forEach((tKey) => {
       const t = parseFloat(tKey);
       allCells.forEach((cellId) => {
         const cellKey = `cell_${cellId}`;
-        // Create varied baseline noise with different patterns per cell
-        const baseNoise = Math.sin(t * 2 + cellId) * 0.02 + 0.03;
-        timePoints[t][cellKey] = Math.max(0, baseNoise + Math.random() * 0.02);
+        const pattern = cellPatterns[cellId];
+        // Create unique oscillating pattern per cell
+        const wave = Math.sin(t * pattern.freq + pattern.phase) * 0.1;
+        const noise = (Math.random() - 0.5) * 0.04;
+        timePoints[t][cellKey] = Math.max(0, pattern.baseLevel + wave + noise);
       });
     });
 
-    // Add loss spikes based on root cause attribution
+    // Add distinct spikes at different times based on root cause attribution
     Object.entries(data.root_cause_attribution).forEach(([linkId, events]) => {
-      events.forEach((event) => {
-        // Map event time to our 0-5s range
-        const normalizedTime = ((event.time_sec - 1) / 3) * 5; // Map 1-4s to 0-5s range
-        const baseTime = Math.round(normalizedTime * 10) / 10;
+      events.forEach((event, eventIdx) => {
+        // Spread events across the 0-10s range with offsets per event
+        const baseTime = (eventIdx + 1) * 1.5 + parseInt(linkId) * 0.5;
         
         event.contributors.forEach((contrib, contribIdx) => {
           const cellKey = `cell_${contrib.cell_id}`;
           
-          // Create a spike around the event time with some spread
-          for (let offset = -0.3; offset <= 0.3; offset += 0.1) {
-            const t = Math.round((baseTime + offset + contribIdx * 0.1) * 10) / 10;
-            if (t >= 0 && t <= 5 && timePoints[t]) {
-              // Calculate spike height based on contribution percentage
-              const spikeHeight = (contrib.pct / 100) * (0.4 + Math.random() * 0.3);
-              const decay = 1 - Math.abs(offset) * 2; // Decay away from center
-              timePoints[t][cellKey] = Math.min(1, (timePoints[t][cellKey] || 0) + spikeHeight * decay);
+          // Each contributor gets a slightly different spike time
+          const spikeTime = baseTime + contribIdx * 0.6;
+          
+          // Create a bell-curve spike
+          for (let offset = -0.8; offset <= 0.8; offset += 0.2) {
+            const t = Math.round((spikeTime + offset) * 10) / 10;
+            if (t >= 0 && t <= 10 && timePoints[t]) {
+              const spikeHeight = (contrib.pct / 100) * (0.5 + Math.random() * 0.2);
+              const decay = Math.exp(-Math.pow(offset, 2) * 3); // Gaussian decay
+              const currentVal = timePoints[t][cellKey] || 0;
+              timePoints[t][cellKey] = Math.min(1, currentVal + spikeHeight * decay);
             }
           }
         });
