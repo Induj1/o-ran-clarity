@@ -78,7 +78,7 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
       </div>
 
       {/* Flow Visualization Container */}
-      <div className="relative bg-muted/30 rounded-xl p-6 overflow-hidden min-h-[400px]">
+      <div className="relative bg-muted/30 rounded-xl p-6 pb-16 overflow-visible min-h-[500px]">
         {/* DU Node (Center Right) */}
         <div className="absolute right-8 top-1/2 -translate-y-1/2 z-20">
           <div className="w-20 h-20 rounded-full bg-[hsl(var(--node-du))] flex items-center justify-center shadow-lg border-4 border-background">
@@ -91,7 +91,7 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
 
         {/* Link Lanes */}
         {linkCells.map((link, linkIdx) => {
-          const yPosition = 15 + linkIdx * 35; // Distribute vertically
+          const yPosition = 12 + linkIdx * 30; // Distribute vertically with more space
           const colors = LINK_COLORS[link.linkId] || LINK_COLORS["1"];
           const isActive = activeLink === link.linkId;
 
@@ -153,11 +153,11 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
               </div>
 
               {/* Cell Source Icons */}
-              <div className="flex gap-1.5 mt-2 flex-wrap">
-                {link.cells.slice(0, 8).map((cellId, idx) => (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {link.cells.map((cellId, idx) => (
                   <div
                     key={cellId}
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-medium border animate-pulse-subtle"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium border-2 animate-pulse-subtle bg-background/80"
                     style={{
                       borderColor: colors.main,
                       color: colors.main,
@@ -167,14 +167,6 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
                     {cellId}
                   </div>
                 ))}
-                {link.cells.length > 8 && (
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-[9px]"
-                    style={{ color: colors.main }}
-                  >
-                    +{link.cells.length - 8}
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -191,7 +183,7 @@ export function CellFlowVisualization({ data }: CellFlowVisualizationProps) {
             ))}
           </defs>
           {linkCells.map((link, idx) => {
-            const yPos = 15 + idx * 35;
+            const yPos = 12 + idx * 30;
             return (
               <path
                 key={link.linkId}

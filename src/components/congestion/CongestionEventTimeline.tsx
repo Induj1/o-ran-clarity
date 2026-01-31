@@ -16,18 +16,34 @@ const LINK_COLORS: Record<string, string> = {
 export function CongestionEventTimeline({ events }: CongestionEventTimelineProps) {
   const [activeEvent, setActiveEvent] = useState<number | null>(null);
 
-  const sortedEvents = useMemo(() => {
-    return [...events].sort((a, b) => a.timestamp - b.timestamp);
+  // Group events by unique timestamp to avoid overlap
+  const groupedEvents = useMemo(() => {
+    const sorted = [...events].sort((a, b) => a.timestamp - b.timestamp);
+    const groups: { timestamp: number; events: typeof events }[] = [];
+    
+    sorted.forEach((event) => {
+      // Find if there's an existing group within 0.05s
+      const existingGroup = groups.find(
+        (g) => Math.abs(g.timestamp - event.timestamp) < 0.05
+      );
+      if (existingGroup) {
+        existingGroup.events.push(event);
+      } else {
+        groups.push({ timestamp: event.timestamp, events: [event] });
+      }
+    });
+    
+    return groups;
   }, [events]);
 
   const timeRange = useMemo(() => {
-    if (sortedEvents.length === 0) return { min: 0, max: 1 };
-    const timestamps = sortedEvents.map((e) => e.timestamp);
+    if (groupedEvents.length === 0) return { min: 0, max: 1 };
+    const timestamps = groupedEvents.map((g) => g.timestamp);
     return {
       min: Math.min(...timestamps),
       max: Math.max(...timestamps),
     };
-  }, [sortedEvents]);
+  }, [groupedEvents]);
 
   const getPositionPercent = (timestamp: number) => {
     const range = timeRange.max - timeRange.min;
@@ -47,79 +63,96 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
         </span>
       </div>
 
-      {/* Expanded Timeline - Horizontal Scrollable */}
+      {/* Timeline - Horizontal with grouped events */}
       <div className="overflow-x-auto pb-4">
-        <div className="relative min-w-[800px]">
+        <div className="relative min-w-[900px]">
           {/* Timeline Base Track */}
-          <div className="h-3 bg-muted rounded-full relative overflow-hidden mx-16">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/30 to-primary/10 animate-pulse" />
+          <div className="h-3 bg-muted rounded-full relative overflow-hidden mx-20">
+            <div 
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/40 to-accent/40 rounded-full"
+              style={{ width: '100%' }}
+            />
           </div>
 
           {/* Time Axis Labels */}
-          <div className="flex justify-between mx-16 mt-2 text-xs text-muted-foreground font-mono">
+          <div className="flex justify-between mx-20 mt-2 text-xs text-muted-foreground font-mono">
             <span>{timeRange.min.toFixed(2)}s</span>
             <span>{((timeRange.min + timeRange.max) / 2).toFixed(2)}s</span>
             <span>{timeRange.max.toFixed(2)}s</span>
           </div>
 
-          {/* Event Markers - More Spacing */}
-          <div className="relative h-28 mt-6 mx-16">
-            {sortedEvents.map((event, idx) => {
-              const leftPercent = getPositionPercent(event.timestamp);
-              const isActive = activeEvent === idx;
-              const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
+          {/* Grouped Event Markers */}
+          <div className="relative h-40 mt-8 mx-20">
+            {groupedEvents.map((group, groupIdx) => {
+              const leftPercent = getPositionPercent(group.timestamp);
+              const isAnyActive = group.events.some((_, idx) => 
+                activeEvent === events.indexOf(group.events[idx])
+              );
 
               return (
                 <div
-                  key={idx}
-                  className="absolute transform -translate-x-1/2 cursor-pointer transition-all duration-300 group"
+                  key={groupIdx}
+                  className="absolute transform -translate-x-1/2"
                   style={{ left: `${leftPercent}%` }}
-                  onMouseEnter={() => setActiveEvent(idx)}
-                  onMouseLeave={() => setActiveEvent(null)}
                 >
                   {/* Connector Line */}
-                  <div
-                    className="w-0.5 mx-auto transition-all duration-300"
-                    style={{
-                      backgroundColor: linkColor,
-                      opacity: isActive ? 1 : 0.4,
-                      height: isActive ? "32px" : "20px",
-                    }}
-                  />
+                  <div className="w-0.5 h-6 mx-auto bg-muted-foreground/30" />
 
-                  {/* Event Node - Larger */}
-                  <div
-                    className={`
-                      w-10 h-10 rounded-full flex items-center justify-center
-                      border-2 transition-all duration-300
-                      ${isActive ? "scale-125 shadow-lg" : "scale-100"}
-                    `}
-                    style={{
-                      borderColor: linkColor,
-                      backgroundColor: isActive ? linkColor : "hsl(var(--card))",
-                      boxShadow: isActive ? `0 0 20px ${linkColor}40` : undefined,
-                    }}
-                  >
-                    <Radio
-                      className="w-5 h-5 transition-colors"
-                      style={{ color: isActive ? "hsl(var(--card))" : linkColor }}
-                    />
+                  {/* Stacked event nodes for this timestamp */}
+                  <div className="flex flex-col items-center gap-1">
+                    {group.events.map((event, eventIdx) => {
+                      const globalIdx = events.indexOf(event);
+                      const isActive = activeEvent === globalIdx;
+                      const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
+
+                      return (
+                        <div
+                          key={eventIdx}
+                          className="flex flex-col items-center cursor-pointer transition-all duration-200"
+                          onMouseEnter={() => setActiveEvent(globalIdx)}
+                          onMouseLeave={() => setActiveEvent(null)}
+                        >
+                          {/* Event Node */}
+                          <div
+                            className={`
+                              w-9 h-9 rounded-full flex items-center justify-center
+                              border-2 transition-all duration-200
+                              ${isActive ? "scale-110 shadow-md" : "scale-100"}
+                            `}
+                            style={{
+                              borderColor: linkColor,
+                              backgroundColor: isActive ? linkColor : "hsl(var(--card))",
+                            }}
+                          >
+                            <Radio
+                              className="w-4 h-4"
+                              style={{ color: isActive ? "hsl(var(--card))" : linkColor }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {/* Link Badge */}
-                  <div
-                    className="mt-2 px-2 py-0.5 rounded text-[10px] font-medium text-center whitespace-nowrap"
-                    style={{ 
-                      backgroundColor: `${linkColor}20`, 
-                      color: linkColor 
-                    }}
-                  >
-                    {event.link_id}
-                  </div>
-
-                  {/* Timestamp */}
-                  <div className="text-[10px] text-center mt-1 text-muted-foreground font-mono whitespace-nowrap">
-                    t={event.timestamp.toFixed(2)}s
+                  {/* Single timestamp label for the group */}
+                  <div className="mt-2 text-center">
+                    <div className="flex flex-wrap justify-center gap-1 mb-1">
+                      {group.events.map((event, idx) => {
+                        const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
+                        return (
+                          <span
+                            key={idx}
+                            className="px-1.5 py-0.5 rounded text-[9px] font-medium"
+                            style={{ backgroundColor: `${linkColor}20`, color: linkColor }}
+                          >
+                            {event.link_id}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground font-mono">
+                      t={group.timestamp.toFixed(2)}s
+                    </div>
                   </div>
                 </div>
               );
@@ -128,10 +161,10 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
         </div>
       </div>
 
-      {/* Event Details - Horizontal Scroll for Many Events */}
+      {/* Event Details - Grouped by timestamp */}
       <div className="overflow-x-auto pb-2">
         <div className="flex gap-4 min-w-min">
-          {sortedEvents.map((event, idx) => {
+          {groupedEvents.flatMap((group) => group.events).map((event, idx) => {
             const isActive = activeEvent === idx;
             const linkColor = LINK_COLORS[event.link_id] || "hsl(var(--primary))";
 
@@ -160,8 +193,12 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
 
                 {/* Contributors */}
                 <div className="space-y-2.5">
-                  {event.contributors.slice(0, 4).map((contributor, cIdx) => {
+                      {event.contributors.slice(0, 4).map((contributor, cIdx) => {
                     const isHighContributor = contributor.contribution_percent > 20;
+                    // Extract just the number from "Cell X" if it already has "Cell" prefix
+                    const cellDisplay = contributor.cell_id.startsWith("Cell ") 
+                      ? contributor.cell_id 
+                      : `Cell ${contributor.cell_id}`;
 
                     return (
                       <div key={cIdx} className="space-y-1">
@@ -171,7 +208,7 @@ export function CongestionEventTimeline({ events }: CongestionEventTimelineProps
                               <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-medium))]" />
                             )}
                             <span className={isHighContributor ? "text-[hsl(var(--status-medium))] font-medium" : "text-muted-foreground"}>
-                              Cell {contributor.cell_id}
+                              {cellDisplay}
                             </span>
                           </div>
                           <span className={`font-mono ${isHighContributor ? "text-[hsl(var(--status-medium))] font-medium" : "text-foreground"}`}>
