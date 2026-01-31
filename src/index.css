@@ -232,6 +232,74 @@
     }
   }
 
+  /* Cell flow animation - flows from left to right */
+  .animate-flow-cell {
+    animation: flowCell 3s ease-in-out forwards;
+  }
+
+  @keyframes flowCell {
+    0% {
+      left: 0%;
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    15% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    85% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      left: calc(100% - 50px);
+      opacity: 0;
+      transform: scale(0.8);
+    }
+  }
+
+  /* Subtle pulse for cell nodes */
+  .animate-pulse-subtle {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  /* Dashed line animation */
+  .animate-dash {
+    animation: dashMove 1.5s linear infinite;
+  }
+
+  @keyframes dashMove {
+    0% {
+      stroke-dashoffset: 24;
+    }
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Flow pulse for background */
+  @keyframes flowPulse {
+    0%, 100% {
+      opacity: 0.1;
+      transform: translateX(-100%);
+    }
+    50% {
+      opacity: 0.3;
+      transform: translateX(100%);
+    }
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
