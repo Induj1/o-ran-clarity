@@ -1,5 +1,6 @@
 import { AnalysisResponse } from "@/types/api";
 import { CongestionTimeline } from "./CongestionTimeline";
+import { CongestionEventTimeline } from "./CongestionEventTimeline";
 import { Info } from "lucide-react";
 import { useMemo } from "react";
 
@@ -63,11 +64,20 @@ export function CongestionSection({ data }: CongestionSectionProps) {
         </div>
       </div>
 
-      {/* Timeline */}
+      {/* Visual Event Timeline */}
       <div>
         <h2 className="section-title mb-1">Congestion Event Timeline</h2>
         <p className="section-description">
-          Root-cause attribution showing which cells contributed to each congestion event
+          Interactive timeline showing when congestion events occurred and which cells contributed
+        </p>
+        <CongestionEventTimeline events={data.root_cause_attribution.events} />
+      </div>
+
+      {/* Line Chart */}
+      <div>
+        <h2 className="section-title mb-1">Cell Contribution Trends</h2>
+        <p className="section-description">
+          Line chart showing how cell contributions change across congestion events
         </p>
         <CongestionTimeline events={data.root_cause_attribution.events} />
       </div>
